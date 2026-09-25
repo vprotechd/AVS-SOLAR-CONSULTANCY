@@ -1,0 +1,951 @@
+/* =========================================================
+   GALLERY SECTION
+   PREMIUM LIGHT JOURNEY DESIGN
+========================================================= */
+
+.gallery-section {
+  position: relative;
+  width: 100%;
+  min-height: 720px;
+  padding: 70px 30px 65px;
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      135deg,
+      #f8fbff 0%,
+      #eef6fd 50%,
+      #f7fbff 100%
+    );
+
+  color: #10213d;
+  border-radius: 30px 30px 0 0;
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+========================================================= */
+
+.gallery-container {
+  position: relative;
+  z-index: 5;
+
+  width: 100%;
+  max-width: 1050px;
+
+  margin: 0 auto;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.gallery-header {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+
+/* =========================================================
+   EYEBROW
+========================================================= */
+
+.gallery-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+  margin-bottom: 7px;
+
+  color: #b88616;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  letter-spacing: 3px;
+}
+
+
+.eyebrow-line {
+  width: 27px;
+  height: 1.5px;
+
+  background: #c99a2e;
+}
+
+
+/* =========================================================
+   MAIN TITLE
+========================================================= */
+
+.gallery-title {
+  margin: 0;
+
+  color: #10213d;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: clamp(38px, 4.5vw, 52px);
+
+  font-weight: 700;
+
+  line-height: 1.08;
+
+  letter-spacing: -1.5px;
+}
+
+
+/* =========================================================
+   SUBTITLE
+========================================================= */
+
+.gallery-subtitle {
+  margin: 9px auto 0;
+
+  max-width: 650px;
+
+  color: #52657d;
+
+  font-size: 12px;
+
+  line-height: 1.55;
+
+  font-weight: 500;
+}
+
+
+/* =========================================================
+   SLIDER AREA
+========================================================= */
+
+.gallery-slider-area {
+  position: relative;
+
+  width: 100%;
+}
+
+
+/* =========================================================
+   MAIN IMAGE WRAPPER
+
+   Increased height so people at the top of images
+   don't get cropped.
+========================================================= */
+
+.gallery-main-wrapper {
+  position: relative;
+
+  width: 100%;
+  max-width: 690px;
+
+  /*
+    Larger image area.
+  */
+  height: 340px;
+
+  margin: 20px auto 20px;
+
+  overflow: visible;
+}
+
+
+/* =========================================================
+   SLIDE
+========================================================= */
+
+.gallery-slide {
+  position: absolute;
+
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
+  overflow: hidden;
+
+  border-radius: 9px;
+
+  background: #eef5fb;
+
+  box-shadow:
+    0 15px 35px
+      rgba(31, 55, 84, 0.16);
+}
+
+
+/* =========================================================
+   MAIN IMAGE
+
+   IMPORTANT:
+   contain prevents faces from being cropped.
+========================================================= */
+
+.gallery-main-image {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  /*
+    DO NOT use cover here.
+    contain keeps the complete original image.
+  */
+  object-fit: contain;
+
+  object-position: center;
+
+  background: #eef5fb;
+
+  /*
+    No scale because scaling was causing
+    the faces to disappear.
+  */
+  transform: none;
+
+  transition:
+    opacity 0.4s ease;
+}
+
+
+/* =========================================================
+   IMAGE OVERLAY
+========================================================= */
+
+.gallery-image-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(15, 35, 58, 0) 60%,
+      rgba(15, 35, 58, 0.20) 100%
+    );
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   COUNTER
+========================================================= */
+
+.gallery-counter {
+  position: absolute;
+
+  z-index: 10;
+
+  left: 0;
+  bottom: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  min-width: 82px;
+  height: 36px;
+
+  padding: 0 15px;
+
+  border-radius: 0 8px 0 0;
+
+  background:
+    rgba(16, 33, 61, 0.94);
+
+  color: #ffffff;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 13px;
+
+  font-weight: 600;
+}
+
+
+.counter-active {
+  color: #d6a62b;
+  font-weight: 700;
+}
+
+
+.counter-divider {
+  color:
+    rgba(255, 255, 255, 0.55);
+}
+
+
+.counter-total {
+  color: #ffffff;
+}
+
+
+/* =========================================================
+   ARROWS
+========================================================= */
+
+.gallery-arrow {
+  position: absolute;
+
+  z-index: 20;
+
+  top: 50%;
+
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: none;
+
+  border-radius: 50%;
+
+  background: #ffffff;
+
+  color: #15345a;
+
+  box-shadow:
+    0 8px 25px
+      rgba(22, 54, 87, 0.16);
+
+  cursor: pointer;
+
+  transform:
+    translateY(-50%);
+
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+
+.gallery-arrow:hover {
+  background: #c99824;
+
+  color: #ffffff;
+
+  box-shadow:
+    0 10px 28px
+      rgba(174, 126, 24, 0.28);
+}
+
+
+.gallery-arrow-left {
+  left: -55px;
+}
+
+
+.gallery-arrow-right {
+  right: -55px;
+}
+
+
+.gallery-arrow-left:hover {
+  transform:
+    translate(-3px, -50%);
+}
+
+
+.gallery-arrow-right:hover {
+  transform:
+    translate(3px, -50%);
+}
+
+
+/* =========================================================
+   THUMBNAILS
+========================================================= */
+
+.gallery-thumbnails {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  width: 100%;
+
+  max-width: 700px;
+
+  margin: 0 auto;
+}
+
+
+/* =========================================================
+   THUMBNAIL
+========================================================= */
+
+.gallery-thumbnail {
+  position: relative;
+
+  flex-shrink: 0;
+
+  width: 76px;
+  height: 58px;
+
+  padding: 0;
+
+  overflow: hidden;
+
+  border:
+    2px solid transparent;
+
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  opacity: 0.85;
+
+  box-shadow:
+    0 4px 12px
+      rgba(20, 47, 77, 0.10);
+
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+
+.gallery-thumbnail img {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  /*
+    Thumbnails can use cover because
+    they are only previews.
+  */
+  object-fit: cover;
+
+  object-position: center;
+}
+
+
+.gallery-thumbnail:hover {
+  opacity: 1;
+
+  transform:
+    translateY(-3px);
+}
+
+
+.gallery-thumbnail.active {
+  opacity: 1;
+
+  border-color: #c99824;
+
+  box-shadow:
+    0 5px 15px
+      rgba(180, 131, 25, 0.25);
+
+  transform:
+    translateY(-2px);
+}
+
+
+/* =========================================================
+   PAGINATION DOTS
+========================================================= */
+
+.gallery-pagination {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  margin-top: 18px;
+}
+
+
+.gallery-pagination-dot {
+  width: 8px;
+  height: 8px;
+
+  padding: 0;
+
+  border: none;
+
+  border-radius: 50%;
+
+  background: #b9c9da;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.3s ease,
+    background 0.3s ease;
+}
+
+
+.gallery-pagination-dot:hover {
+  transform: scale(1.25);
+}
+
+
+.gallery-pagination-dot.active {
+  width: 9px;
+  height: 9px;
+
+  background: #b88719;
+}
+
+
+/* =========================================================
+   DECORATIVE CIRCLES
+========================================================= */
+
+.gallery-decoration {
+  position: absolute;
+
+  pointer-events: none;
+
+  z-index: 1;
+}
+
+
+.gallery-circle-left {
+  width: 160px;
+  height: 160px;
+
+  left: -80px;
+  top: 90px;
+
+  border-radius: 50%;
+
+  background:
+    rgba(185, 216, 243, 0.40);
+}
+
+
+.gallery-circle-right {
+  width: 190px;
+  height: 190px;
+
+  right: -90px;
+  bottom: -70px;
+
+  border-radius: 50%;
+
+  background:
+    rgba(191, 219, 243, 0.38);
+}
+
+
+/* =========================================================
+   DOT PATTERNS
+========================================================= */
+
+.gallery-dots-decoration {
+  position: absolute;
+
+  z-index: 1;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 3px);
+
+  gap: 7px;
+
+  opacity: 0.75;
+}
+
+
+.gallery-dots-decoration span {
+  width: 3px;
+  height: 3px;
+
+  border-radius: 50%;
+
+  background: #8bb9df;
+}
+
+
+.dots-left {
+  left: 30px;
+  bottom: 135px;
+}
+
+
+.dots-right {
+  right: 24px;
+  top: 155px;
+}
+
+
+/* =========================================================
+   GOLD CURVES
+========================================================= */
+
+.gallery-gold-curve {
+  position: absolute;
+
+  z-index: 1;
+
+  width: 105px;
+  height: 190px;
+
+  border: 1px solid #c99824;
+
+  pointer-events: none;
+}
+
+
+.curve-left {
+  left: -95px;
+  top: 190px;
+
+  border-right: none;
+
+  border-radius:
+    0 100% 100% 0;
+}
+
+
+.curve-right {
+  right: -95px;
+  top: 260px;
+
+  border-left: none;
+
+  border-radius:
+    100% 0 0 100%;
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+
+  .gallery-section {
+    padding:
+      65px 25px
+      55px;
+  }
+
+
+  .gallery-container {
+    max-width: 800px;
+  }
+
+
+  .gallery-main-wrapper {
+    max-width: 650px;
+
+    height: 320px;
+  }
+
+
+  .gallery-arrow-left {
+    left: -25px;
+  }
+
+
+  .gallery-arrow-right {
+    right: -25px;
+  }
+
+
+  .gallery-thumbnail {
+    width: 70px;
+    height: 55px;
+  }
+
+
+  .gallery-thumbnails {
+    gap: 7px;
+  }
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .gallery-section {
+    min-height: auto;
+
+    padding:
+      60px 20px
+      50px;
+
+    border-radius:
+      20px 20px 0 0;
+  }
+
+
+  .gallery-eyebrow {
+    font-size: 11px;
+
+    letter-spacing: 2.5px;
+  }
+
+
+  .eyebrow-line {
+    width: 22px;
+  }
+
+
+  .gallery-title {
+    font-size: 34px;
+
+    letter-spacing: -1px;
+  }
+
+
+  .gallery-subtitle {
+    font-size: 10.5px;
+
+    padding: 0 10px;
+  }
+
+
+  .gallery-subtitle br {
+    display: none;
+  }
+
+
+  /* ================================================
+     MOBILE IMAGE
+  ================================================ */
+
+  .gallery-main-wrapper {
+    width: 100%;
+
+    height: 270px;
+
+    margin-top: 20px;
+  }
+
+
+  .gallery-slide {
+    border-radius: 8px;
+  }
+
+
+  .gallery-main-image {
+    object-fit: contain;
+
+    object-position: center;
+
+    transform: none;
+  }
+
+
+  /* ================================================
+     MOBILE ARROWS
+  ================================================ */
+
+  .gallery-arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+
+  .gallery-arrow-left {
+    left: -17px;
+  }
+
+
+  .gallery-arrow-right {
+    right: -17px;
+  }
+
+
+  /* ================================================
+     COUNTER
+  ================================================ */
+
+  .gallery-counter {
+    height: 31px;
+
+    min-width: 75px;
+
+    padding: 0 12px;
+
+    font-size: 11px;
+  }
+
+
+  /* ================================================
+     THUMBNAILS
+  ================================================ */
+
+  .gallery-thumbnails {
+    gap: 6px;
+
+    overflow-x: auto;
+
+    justify-content: flex-start;
+
+    padding:
+      2px 5px
+      7px;
+
+    scrollbar-width: none;
+  }
+
+
+  .gallery-thumbnails::-webkit-scrollbar {
+    display: none;
+  }
+
+
+  .gallery-thumbnail {
+    width: 65px;
+
+    min-width: 65px;
+
+    height: 50px;
+  }
+
+
+  /* ================================================
+     PAGINATION
+  ================================================ */
+
+  .gallery-pagination {
+    margin-top: 13px;
+
+    gap: 7px;
+  }
+
+
+  /* ================================================
+     DECORATIONS
+  ================================================ */
+
+  .gallery-circle-left {
+    width: 100px;
+    height: 100px;
+
+    left: -65px;
+    top: 90px;
+  }
+
+
+  .gallery-circle-right {
+    width: 120px;
+    height: 120px;
+
+    right: -65px;
+    bottom: -40px;
+  }
+
+
+  .dots-left {
+    left: 15px;
+    bottom: 100px;
+  }
+
+
+  .dots-right {
+    right: 12px;
+    top: 130px;
+  }
+
+
+  .gallery-gold-curve {
+    display: none;
+  }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 420px) {
+
+  .gallery-section {
+    padding:
+      50px 15px
+      45px;
+  }
+
+
+  .gallery-title {
+    font-size: 30px;
+  }
+
+
+  .gallery-main-wrapper {
+    height: 240px;
+  }
+
+
+  .gallery-thumbnail {
+    width: 60px;
+
+    min-width: 60px;
+
+    height: 46px;
+  }
+
+
+  .gallery-arrow {
+    width: 36px;
+    height: 36px;
+  }
+
+
+  .gallery-arrow-left {
+    left: -12px;
+  }
+
+
+  .gallery-arrow-right {
+    right: -12px;
+  }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .gallery-arrow,
+  .gallery-thumbnail,
+  .gallery-pagination-dot {
+    transition: none;
+  }
+
+}

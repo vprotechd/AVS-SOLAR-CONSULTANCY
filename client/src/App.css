@@ -203,5 +203,24 @@
     color:#000;
     padding-left:35px;
 }
+<<<<<<< HEAD:client/src/App.css
   
 }
+=======
+
+.marquee-track span {
+  margin-right: 80px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+>>>>>>> 5610741 (add images):frontend/src/App.css

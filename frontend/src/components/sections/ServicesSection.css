@@ -1,0 +1,633 @@
+
+/* =========================================================
+   SERVICES SECTION - PREMIUM CORPORATE THEME
+========================================================= */
+
+.services-section {
+  position: relative;
+  width: 100%;
+  padding: 100px 40px;
+  overflow: hidden;
+  background: #eef4f9 !important;
+}
+
+/* =========================================================
+   SERVICES OVERLAY
+========================================================= */
+
+.services-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 0% 10%,
+      rgba(15, 76, 129, 0.08),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 100% 90%,
+      rgba(178, 138, 46, 0.07),
+      transparent 30%
+    );
+}
+
+/* =========================================================
+   SECTION CONTENT
+========================================================= */
+
+.section-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1250px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* =========================================================
+   SMALL TITLE
+========================================================= */
+
+.small-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #8f6d20 !important;
+}
+
+/* =========================================================
+   MAIN TITLE
+========================================================= */
+
+.section-title {
+  margin: 0;
+  font-size: clamp(40px, 5vw, 62px);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  color: #0f172a;
+}
+
+.services-title-dark {
+  color: #0f172a;
+}
+
+/* =========================================================
+   SECTION DESCRIPTION
+========================================================= */
+
+.section-text {
+  max-width: 650px;
+  margin: 18px auto 55px;
+  color: #344054;
+  font-size: 16px;
+  line-height: 1.7;
+  font-weight: 500;
+}
+
+/* =========================================================
+   CARD GRID
+========================================================= */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 34px 28px;
+  align-items: start;
+}
+
+/* =========================================================
+   CARD WRAPPER
+========================================================= */
+
+.service-card-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* =========================================================
+   FLIP CARD
+========================================================= */
+
+.flip-card {
+  width: 100%;
+  height: 310px;
+  perspective: 1200px;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+
+  transition:
+    transform 0.75s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.flip-card:hover .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+/* =========================================================
+   FRONT + BACK
+========================================================= */
+
+.flip-card-front,
+.flip-card-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+
+  border-radius: 18px;
+
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* =========================================================
+   FRONT CARD
+========================================================= */
+
+.flip-card-front {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  padding: 35px 30px;
+
+  background: #ffffff;
+
+  border: 1px solid #d8e0e8;
+
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08);
+
+  overflow: hidden;
+
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+
+/* =========================================================
+   TOP ACCENT LINE
+========================================================= */
+
+.flip-card-front::before {
+  content: "";
+
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 4px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #0f172a,
+      #1d5d9b,
+      #b28a2e
+    );
+}
+
+/* =========================================================
+   DECORATIVE CIRCLE
+========================================================= */
+
+.flip-card-front::after {
+  content: "";
+
+  position: absolute;
+
+  width: 180px;
+  height: 180px;
+
+  right: -100px;
+  bottom: -100px;
+
+  border-radius: 50%;
+
+  background: rgba(15, 23, 42, 0.035);
+
+  transition:
+    transform 0.5s ease;
+}
+
+.flip-card:hover .flip-card-front::after {
+  transform: scale(1.4);
+}
+
+/* =========================================================
+   FRONT HOVER
+========================================================= */
+
+.flip-card:hover .flip-card-front {
+  border-color: rgba(29, 93, 155, 0.25);
+
+  box-shadow:
+    0 22px 45px rgba(15, 23, 42, 0.14);
+}
+
+/* =========================================================
+   NUMBER
+========================================================= */
+
+.service-number {
+  position: absolute;
+
+  top: 20px;
+  right: 24px;
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+
+  color: #8f6d20;
+}
+
+/* =========================================================
+   CARD TITLE
+========================================================= */
+
+.flip-card-front h3 {
+  position: relative;
+  z-index: 2;
+
+  margin: 0 0 16px;
+
+  font-size: 22px;
+  line-height: 1.3;
+
+  font-weight: 800;
+
+  color: #0f172a !important;
+}
+
+/* =========================================================
+   TITLE UNDERLINE
+========================================================= */
+
+.flip-card-front h3::after {
+  content: "";
+
+  display: block;
+
+  width: 35px;
+  height: 2px;
+
+  margin: 10px auto 0;
+
+  background: #b28a2e;
+
+  transition:
+    width 0.3s ease;
+}
+
+.flip-card:hover .flip-card-front h3::after {
+  width: 65px;
+}
+
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
+.flip-card-front p {
+  position: relative;
+  z-index: 2;
+
+  margin: 0;
+
+  max-width: 330px;
+
+  color: #475467;
+
+  font-size: 14px;
+  line-height: 1.75;
+
+  font-weight: 500;
+}
+
+/* =========================================================
+   FLIP HINT
+========================================================= */
+
+.flip-hint {
+  position: relative;
+  z-index: 2;
+
+  margin-top: 22px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 1px;
+  text-transform: uppercase;
+
+  color: #667085;
+}
+
+.flip-hint span {
+  font-size: 17px;
+  color: #8f6d20;
+}
+
+/* =========================================================
+   BACK CARD
+========================================================= */
+
+.flip-card-back {
+  overflow: hidden;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+
+  padding: 28px;
+
+  background-size: cover;
+  background-position: center;
+
+  transform: rotateY(180deg);
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  box-shadow:
+    0 20px 45px rgba(15, 23, 42, 0.20);
+}
+
+/* =========================================================
+   IMAGE OVERLAY
+========================================================= */
+
+.image-overlay {
+  position: absolute;
+  inset: 0;
+
+  z-index: 1;
+
+  background:
+    linear-gradient(
+      to top,
+      rgba(8, 20, 36, 0.94) 0%,
+      rgba(8, 20, 36, 0.68) 45%,
+      rgba(8, 20, 36, 0.15) 100%
+    );
+}
+
+/* =========================================================
+   BACK CONTENT
+========================================================= */
+
+.back-content {
+  position: relative;
+  z-index: 2;
+
+  text-align: left;
+}
+
+.back-content span {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #e1c56f;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 2px;
+}
+
+.back-content h3 {
+  margin: 0;
+
+  color: #ffffff;
+
+  font-size: 24px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   EXPLORE BUTTON
+========================================================= */
+
+.explore-btn {
+  position: relative;
+
+  width: 100%;
+  max-width: 210px;
+
+  margin-top: 17px;
+
+  padding: 12px 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1d5d9b,
+      #143f6b
+    );
+
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 800;
+
+  letter-spacing: 0.3px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 20px rgba(20, 63, 107, 0.30);
+
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    background 0.3s ease;
+}
+
+/* =========================================================
+   BUTTON HOVER
+========================================================= */
+
+.explore-btn:hover {
+  background:
+    linear-gradient(
+      135deg,
+      #b28a2e,
+      #8f6d20
+    );
+
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 12px 25px rgba(178, 138, 46, 0.30);
+}
+
+/* =========================================================
+   BUTTON ARROW
+========================================================= */
+
+.explore-arrow {
+  font-size: 18px;
+
+  transition:
+    transform 0.3s ease;
+}
+
+.explore-btn:hover .explore-arrow {
+  transform: translateX(5px);
+}
+
+/* =========================================================
+   CARD SUBTLE FLOAT
+========================================================= */
+
+@keyframes serviceFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.flip-card {
+  animation:
+    serviceFloat 5s ease-in-out infinite;
+}
+
+.flip-card:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.flip-card:nth-child(3) {
+  animation-delay: 0.8s;
+}
+
+.flip-card:nth-child(4) {
+  animation-delay: 1.2s;
+}
+
+.flip-card:nth-child(5) {
+  animation-delay: 1.6s;
+}
+
+.flip-card:nth-child(6) {
+  animation-delay: 2s;
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1050px) {
+  .services-section {
+    padding: 85px 25px;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px 24px;
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+  .services-section {
+    padding: 70px 18px;
+  }
+
+  .section-text {
+    margin-bottom: 40px;
+    font-size: 15px;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .flip-card {
+    height: 290px;
+  }
+
+  .flip-card-front {
+    padding: 30px 24px;
+  }
+
+  .flip-card-front h3 {
+    font-size: 21px;
+  }
+
+  .flip-card-front p {
+    font-size: 13.5px;
+  }
+
+  .explore-btn {
+    max-width: 240px;
+  }
+}
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 420px) {
+  .services-section {
+    padding: 60px 15px;
+  }
+
+  .flip-card {
+    height: 300px;
+  }
+
+  .flip-card-front {
+    padding: 25px 20px;
+  }
+
+  .flip-card-front h3 {
+    font-size: 20px;
+  }
+
+  .flip-card-front p {
+    font-size: 13px;
+  }
+
+  .explore-btn {
+    max-width: 100%;
+  }
+}
+
