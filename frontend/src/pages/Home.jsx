@@ -43,7 +43,7 @@ export default function Home() {
     <>
       <HeroSection scrollToServices={scrollToServices} scrollToCourses={scrollToCourses} />
       <AboutSection />
-      <ServicesSection servicesRef={servicesRef} navigate={navigate} />
+      
       <LogoSliderSection />
       <ProcessSection />
       <CoursesSection coursesRef={coursesRef} />
