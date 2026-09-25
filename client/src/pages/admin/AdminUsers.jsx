@@ -14,9 +14,7 @@ import {
 } from "react-icons/fi";
 import "./AdminUsers.css";
 
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-).replace(/\/+$/, "");
+const API_URL = import.meta.env.VITE_API_URL;
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);

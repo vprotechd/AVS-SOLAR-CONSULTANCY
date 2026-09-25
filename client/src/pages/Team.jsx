@@ -13,13 +13,8 @@ import {
   FiLinkedin,
   FiAward,
 } from "react-icons/fi";
+const API_URL = import.meta.env.VITE_API_URL;
 
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
-)
-  .replace(/\/api\/?$/, "")
-  .replace(/\/+$/, "");
-  
 function Team() {
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +22,7 @@ function Team() {
   useEffect(() => {
     const fetchTeam = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/team/public`);
+        const response = await fetch(`${API_URL}/team/public`);
 
         if (!response.ok) {
           throw new Error(`Server returned ${response.status}`);
@@ -48,7 +43,6 @@ function Team() {
 
     fetchTeam();
   }, []);
-
   return (
     <>
       <Navbar />
