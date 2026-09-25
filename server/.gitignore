@@ -24,11 +24,16 @@ dist-ssr
 *.sw?
 
 
-# Environment variables
+
+.node_modules
+
+
+
+
+
+
 .env
 .env.*
 !.env.example
-
-# Client environment variables
-.env
-.node_modules
+client/.env
+server/.env
