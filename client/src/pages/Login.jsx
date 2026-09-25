@@ -72,17 +72,17 @@ export default function Login({ setToken, onClose }) {
           password,
         };
 
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/user/${endpoint}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+   try {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/user/${endpoint}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
       const data = await response.json();
 

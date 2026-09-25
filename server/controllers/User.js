@@ -7,14 +7,25 @@ import User from "../models/User.js";
 
 dotenv.config();
 
+
+// =====================================================
+// ENVIRONMENT CONFIGURATION
+// =====================================================
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   process.env.LEGACY_JWT_SECRET ||
   "hfgbdgteyhgdfsavdfertfhngjuythfjndjdkdmedkdoeoemnhgfytrgegdgsh";
 
+// Frontend URL
+// Local: http://localhost:5173
+// Production: set CLIENT_URL in Render
 const FRONTEND_URL =
-  process.env.FRONTEND_URL || "http://localhost:5173";
+  process.env.CLIENT_URL || "http://localhost:5173";
 
+// Backend URL
+// Local: http://localhost:5000
+// Production: set BACKEND_URL in Render
 const BACKEND_URL =
   process.env.BACKEND_URL || "http://localhost:5000";
 
@@ -37,7 +48,6 @@ const transporter = nodemailer.createTransport({
 // =====================================================
 
 const sendVerificationEmail = async (user, token) => {
-
   const verifyUrl =
     `${BACKEND_URL}/api/user/verify-email/${token}`;
 
@@ -126,15 +136,12 @@ const sendVerificationEmail = async (user, token) => {
 // =====================================================
 
 export const registerUser = async (req, res) => {
-
   try {
-
     const {
       fullName,
       email,
       password,
     } = req.body;
-
 
     // -----------------------------------------------
     // VALIDATION
@@ -149,7 +156,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-
     if (
       typeof email !== "string" ||
       !email.trim()
@@ -158,7 +164,6 @@ export const registerUser = async (req, res) => {
         message: "Email is required",
       });
     }
-
 
     if (
       typeof password !== "string" ||
@@ -169,14 +174,12 @@ export const registerUser = async (req, res) => {
       });
     }
 
-
     if (password.length < 6) {
       return res.status(400).json({
         message:
           "Password must be at least 6 characters",
       });
     }
-
 
     const cleanName = fullName.trim();
 
@@ -198,7 +201,6 @@ export const registerUser = async (req, res) => {
     // -----------------------------------------------
 
     if (user && user.isVerified) {
-
       return res.status(400).json({
         message: "Email is already registered",
       });
@@ -210,7 +212,6 @@ export const registerUser = async (req, res) => {
     // -----------------------------------------------
 
     if (user && !user.isVerified) {
-
       const verificationToken =
         crypto.randomBytes(32).toString("hex");
 
@@ -221,9 +222,7 @@ export const registerUser = async (req, res) => {
 
       await user.save();
 
-
       try {
-
         await sendVerificationEmail(
           user,
           verificationToken
@@ -235,7 +234,6 @@ export const registerUser = async (req, res) => {
         });
 
       } catch (emailError) {
-
         console.error(
           "Verification email error:",
           emailError
@@ -253,44 +251,42 @@ export const registerUser = async (req, res) => {
     // CREATE NEW USER
     // -----------------------------------------------
 
-const verificationToken =
-  crypto.randomBytes(32).toString("hex");
+    const verificationToken =
+      crypto.randomBytes(32).toString("hex");
 
-const hashedPassword =
-  await bcrypt.hash(password, 10);
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
 
-user = new User({
-  fullName: cleanName,
-  email: cleanEmail,
-  password: hashedPassword,
-  role: "user",
-  isVerified: false,
-  isActive: true,
-  verificationToken,
-});
+    user = new User({
+      fullName: cleanName,
+      email: cleanEmail,
+      password: hashedPassword,
+      role: "user",
+      isVerified: false,
+      isActive: true,
+      verificationToken,
+    });
 
-await user.save();
+    await user.save();
+
 
     // -----------------------------------------------
     // SEND VERIFICATION EMAIL
     // -----------------------------------------------
 
     try {
-
       await sendVerificationEmail(
         user,
         verificationToken
       );
 
     } catch (emailError) {
-
       console.error(
         "Verification email failed:",
         emailError
       );
 
       // Remove account if email could not be sent.
-      // This prevents an unusable account being created.
       await User.findByIdAndDelete(user._id);
 
       return res.status(500).json({
@@ -306,7 +302,6 @@ await user.save();
     });
 
   } catch (error) {
-
     console.error(
       "Registration error:",
       error
@@ -323,18 +318,22 @@ await user.save();
 // =====================================================
 // VERIFY EMAIL
 // =====================================================
-// VERIFY EMAIL
+
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
 
-    console.log("Verification token received:", token);
+    console.log(
+      "Verification token received:",
+      token
+    );
 
     if (!token) {
       return res.redirect(
-        "http://localhost:5173/email-verified?status=error&message=Verification%20token%20is%20missing"
+        `${FRONTEND_URL}/email-verified?status=error&message=Verification%20token%20is%20missing`
       );
     }
+
 
     const user = await User.findOne({
       verificationToken: token,
@@ -342,74 +341,90 @@ export const verifyEmail = async (req, res) => {
 
     if (!user) {
       return res.redirect(
-        "http://localhost:5173/email-verified?status=error&message=Invalid%20or%20expired%20verification%20link"
+        `${FRONTEND_URL}/email-verified?status=error&message=Invalid%20or%20expired%20verification%20link`
       );
     }
+
 
     // Already verified
     if (user.isVerified) {
       return res.redirect(
-        "http://localhost:5173/email-verified?status=already"
+        `${FRONTEND_URL}/email-verified?status=already`
       );
     }
+
 
     user.isVerified = true;
     user.verificationToken = null;
 
     await user.save();
 
-    console.log("Email verified successfully:", user.email);
+    console.log(
+      "Email verified successfully:",
+      user.email
+    );
 
     return res.redirect(
-      "http://localhost:5173/email-verified?status=success"
+      `${FRONTEND_URL}/email-verified?status=success`
     );
 
   } catch (error) {
-    console.error("Email verification error:", error);
+    console.error(
+      "Email verification error:",
+      error
+    );
 
     return res.redirect(
-      "http://localhost:5173/email-verified?status=error&message=Something%20went%20wrong"
+      `${FRONTEND_URL}/email-verified?status=error&message=Something%20went%20wrong`
     );
   }
 };
 
-// =====================================================
-// LOGIN USER
-// =====================================================
-// =====================================================
-// LOGIN USER
-// =====================================================
+
 // =====================================================
 // LOGIN USER
 // =====================================================
 
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
+
 
     // -----------------------------------------------
     // VALIDATION
     // -----------------------------------------------
 
-    if (typeof email !== "string" || !email.trim()) {
+    if (
+      typeof email !== "string" ||
+      !email.trim()
+    ) {
       return res.status(400).json({
         success: false,
         message: "Email is required",
       });
     }
 
-    if (typeof password !== "string" || !password) {
+    if (
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
         message: "Password is required",
       });
     }
 
+
     // -----------------------------------------------
     // CLEAN EMAIL
     // -----------------------------------------------
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail =
+      email.trim().toLowerCase();
+
 
     // -----------------------------------------------
     // FIND USER
@@ -426,6 +441,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
+
     // -----------------------------------------------
     // CHECK EMAIL VERIFICATION
     // -----------------------------------------------
@@ -433,9 +449,11 @@ export const loginUser = async (req, res) => {
     if (!user.isVerified) {
       return res.status(401).json({
         success: false,
-        message: "Please verify your email first",
+        message:
+          "Please verify your email first",
       });
     }
+
 
     // -----------------------------------------------
     // CHECK ACTIVE STATUS
@@ -449,37 +467,43 @@ export const loginUser = async (req, res) => {
       });
     }
 
+
     // -----------------------------------------------
     // CHECK PASSWORD
     // -----------------------------------------------
 
-    const isMatch = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const isMatch =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
 
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message:
+          "Invalid email or password",
       });
     }
+
 
     // -----------------------------------------------
     // CREATE JWT
     // -----------------------------------------------
 
-    const token = jwt.sign(
-      {
-        id: user._id.toString(),
-        email: user.email,
-        role: user.role,
-      },
-      JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
-    );
+    const token =
+      jwt.sign(
+        {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+        },
+        JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
+
 
     // -----------------------------------------------
     // LOGIN RESPONSE
@@ -494,22 +518,25 @@ export const loginUser = async (req, res) => {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
-
-        // VERY IMPORTANT
         role: user.role,
-
         isVerified: user.isVerified,
         isActive: user.isActive,
       },
 
-      message: "Login successful",
+      message:
+        "Login successful",
     });
+
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(
+      "Login error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error during login",
+      message:
+        "Server error during login",
     });
   }
 };
@@ -547,11 +574,14 @@ export const forgotPassword = async (
     const { email } = req.body;
 
 
+    // -----------------------------------------------
+    // VALIDATION
+    // -----------------------------------------------
+
     if (
       typeof email !== "string" ||
       !email.trim()
     ) {
-
       return res.status(400).json({
         message: "Email is required",
       });
@@ -562,6 +592,10 @@ export const forgotPassword = async (
       email.trim().toLowerCase();
 
 
+    // -----------------------------------------------
+    // FIND USER
+    // -----------------------------------------------
+
     const user =
       await User.findOne({
         email: cleanEmail,
@@ -569,12 +603,15 @@ export const forgotPassword = async (
 
 
     if (!user) {
-
       return res.status(404).json({
         message: "User not found",
       });
     }
 
+
+    // -----------------------------------------------
+    // CREATE RESET TOKEN
+    // -----------------------------------------------
 
     const resetToken =
       crypto.randomBytes(32).toString("hex");
@@ -592,9 +629,17 @@ export const forgotPassword = async (
     await user.save();
 
 
+    // -----------------------------------------------
+    // FRONTEND RESET URL
+    // -----------------------------------------------
+
     const resetUrl =
       `${FRONTEND_URL}/reset-password/${resetToken}`;
 
+
+    // -----------------------------------------------
+    // SEND RESET EMAIL
+    // -----------------------------------------------
 
     try {
 
@@ -609,33 +654,62 @@ export const forgotPassword = async (
           "Password Reset - AVS Solar Consultancy",
 
         html: `
-          <h2>AVS Solar Consultancy</h2>
+          <!DOCTYPE html>
+          <html>
+          <body style="
+            font-family: Arial, sans-serif;
+            background:#f5f5f5;
+            padding:30px;
+          ">
 
-          <p>
-            You requested a password reset.
-          </p>
+            <div style="
+              max-width:600px;
+              margin:auto;
+              background:white;
+              padding:30px;
+              border-radius:10px;
+            ">
 
-          <p>
-            Click below to reset your password:
-          </p>
+              <h2 style="color:#0052cc;">
+                AVS Solar Consultancy
+              </h2>
 
-          <a
-            href="${resetUrl}"
-            style="
-              display:inline-block;
-              padding:12px 20px;
-              background:#0052cc;
-              color:white;
-              text-decoration:none;
-              border-radius:6px;
-            "
-          >
-            Reset Password
-          </a>
+              <p>
+                You requested a password reset.
+              </p>
 
-          <p>
-            This link expires in 10 minutes.
-          </p>
+              <p>
+                Click below to reset your password:
+              </p>
+
+              <a
+                href="${resetUrl}"
+                style="
+                  display:inline-block;
+                  padding:12px 20px;
+                  background:#0052cc;
+                  color:white;
+                  text-decoration:none;
+                  border-radius:6px;
+                  font-weight:bold;
+                "
+              >
+                Reset Password
+              </a>
+
+              <p style="margin-top:25px;">
+                This link expires in 10 minutes.
+              </p>
+
+              <p>
+                If you did not request this password reset,
+                you can safely ignore this email.
+              </p>
+
+            </div>
+
+          </body>
+          </html>
         `,
       });
 
@@ -693,17 +767,24 @@ export const resetPassword = async (
     } = req.body;
 
 
+    // -----------------------------------------------
+    // VALIDATION
+    // -----------------------------------------------
+
     if (
       typeof password !== "string" ||
       password.length < 6
     ) {
-
       return res.status(400).json({
         message:
           "Password must be at least 6 characters",
       });
     }
 
+
+    // -----------------------------------------------
+    // FIND USER WITH VALID TOKEN
+    // -----------------------------------------------
 
     const user =
       await User.findOne({
@@ -718,7 +799,6 @@ export const resetPassword = async (
 
 
     if (!user) {
-
       return res.status(400).json({
         message:
           "Invalid or expired token",
@@ -726,12 +806,20 @@ export const resetPassword = async (
     }
 
 
+    // -----------------------------------------------
+    // UPDATE PASSWORD
+    // -----------------------------------------------
+
     user.password =
       await bcrypt.hash(
         password,
         10
       );
 
+
+    // -----------------------------------------------
+    // CLEAR RESET TOKEN
+    // -----------------------------------------------
 
     user.resetPasswordToken = null;
     user.resetPasswordExpire = null;

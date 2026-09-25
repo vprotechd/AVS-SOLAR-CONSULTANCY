@@ -19,7 +19,7 @@ const API_URL = (
 )
   .replace(/\/api\/?$/, "")
   .replace(/\/+$/, "");
-
+  
 function Team() {
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -1607,9 +1607,9 @@ const startServer = async () => {
           `AVS Solar Backend running on port ${PORT}`
         );
 
-        console.log(
-          `http://localhost:${PORT}`
-        );
+         console.log(
+      `Server running on port ${PORT}`
+    );
 
         console.log(
           "Login: POST /api/login"

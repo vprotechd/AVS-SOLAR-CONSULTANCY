@@ -26,13 +26,13 @@ function ForgotPassword() {
 
     setLoading(true);
 
-    try {
-      const res = await axios.post(
-        "http://localhost:5000/api/user/forgot-password",
-        {
-          email: email.trim().toLowerCase(),
-        }
-      );
+   try {
+  const res = await axios.post(
+    `${import.meta.env.VITE_API_URL}/user/forgot-password`,
+    {
+      email: email.trim().toLowerCase(),
+    }
+  );
 
       setMessage(
         res.data?.message ||

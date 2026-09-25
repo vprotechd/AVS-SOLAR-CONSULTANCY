@@ -140,11 +140,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      /*
-       * IMPORTANT:
-       * baseURL already includes /api, so the request must be:
-       * GET http://localhost:5000/api/admin/dashboard
-       */
+      
       const response = await api.get("admin/dashboard");
 
       const data = extractData(response);
