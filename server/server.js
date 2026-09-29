@@ -25,13 +25,10 @@ const MONGO_URI = process.env.MONGO_URI;
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-const ADMIN_EMAIL =
-  process.env.ADMIN_EMAIL ||
-  "kritikabharti577@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
-const ADMIN_PASSWORD =
-  process.env.ADMIN_PASSWORD ||
-  "Admin#009";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
 
 /*
 ====================================================
@@ -42,7 +39,7 @@ ENVIRONMENT VALIDATION
 if (!MONGO_URI) {
   console.error("=================================");
   console.error("ERROR: MONGO_URI is missing");
-  console.error("Add MONGO_URI to your .env file");
+  console.error("Add MONGO_URI to your environment variables");
   console.error("=================================");
 
   process.exit(1);
@@ -51,11 +48,41 @@ if (!MONGO_URI) {
 if (!JWT_SECRET) {
   console.error("=================================");
   console.error("ERROR: JWT_SECRET is missing");
-  console.error("Add JWT_SECRET to your .env file");
+  console.error("Add JWT_SECRET to your environment variables");
   console.error("=================================");
 
   process.exit(1);
 }
+
+if (!ADMIN_EMAIL) {
+  console.error("=================================");
+  console.error("ERROR: ADMIN_EMAIL is missing");
+  console.error("Add ADMIN_EMAIL to your environment variables");
+  console.error("=================================");
+}
+
+if (!ADMIN_PASSWORD) {
+  console.error("=================================");
+  console.error("ERROR: ADMIN_PASSWORD is missing");
+  console.error("Add ADMIN_PASSWORD to your environment variables");
+  console.error("=================================");
+}
+
+
+/*
+====================================================
+PRODUCTION URLS
+====================================================
+*/
+
+const CLIENT_URL =
+  process.env.CLIENT_URL ||
+  "http://localhost:5173";
+
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  `http://localhost:${PORT}`;
+
 
 /*
 ====================================================
@@ -63,12 +90,80 @@ CORS
 ====================================================
 */
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
+const allowedOrigins = [
+  CLIENT_URL,
+  "https://avs-solar-consultancy.onrender.com",
+  "http://localhost:5173",
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    /*
+    Allow requests without an Origin header.
+
+    This is useful for:
+    - Postman
+    - server-to-server requests
+    - health checks
+    */
+
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.error(
+      "CORS blocked origin:",
+      origin
+    );
+
+    return callback(
+      new Error(
+        `CORS blocked origin: ${origin}`
+      )
+    );
+  },
+
+  credentials: true,
+
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+  ],
+
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+  ],
+
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+/*
+IMPORTANT:
+Express 5 does not accept app.options("*", ...)
+in the same way as older Express versions.
+
+Use a regular middleware for OPTIONS.
+*/
+
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 
 /*
 ====================================================
@@ -83,6 +178,7 @@ app.use(
     extended: true,
   })
 );
+
 
 /*
 ====================================================
@@ -130,6 +226,7 @@ const userSchema = new mongoose.Schema(
 const User =
   mongoose.models.User ||
   mongoose.model("User", userSchema);
+
 
 /*
 ====================================================
@@ -202,6 +299,7 @@ const Order =
   mongoose.models.Order ||
   mongoose.model("Order", orderSchema);
 
+
 /*
 ====================================================
 MONGODB CONNECTION
@@ -213,19 +311,30 @@ const connectDB = async () => {
     await mongoose.connect(MONGO_URI);
 
     console.log("=================================");
-    console.log("MongoDB Connected Successfully");
-    console.log("Database:", mongoose.connection.name);
-    console.log("Host:", mongoose.connection.host);
+    console.log(
+      "MongoDB Connected Successfully"
+    );
+    console.log(
+      "Database:",
+      mongoose.connection.name
+    );
+    console.log(
+      "Host:",
+      mongoose.connection.host
+    );
     console.log("=================================");
   } catch (error) {
     console.error("=================================");
-    console.error("MongoDB Connection Failed");
+    console.error(
+      "MongoDB Connection Failed"
+    );
     console.error(error.message);
     console.error("=================================");
 
     process.exit(1);
   }
 };
+
 
 /*
 ====================================================
@@ -235,24 +344,27 @@ CREATE / UPDATE ADMIN
 
 const createAdmin = async () => {
   try {
-    const normalizedEmail = ADMIN_EMAIL
-      .trim()
-      .toLowerCase();
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      console.error(
+        "Admin account cannot be created because ADMIN_EMAIL or ADMIN_PASSWORD is missing."
+      );
 
-    let admin = await User.findOne({
-      email: normalizedEmail,
-    });
+      return;
+    }
+
+    const normalizedEmail =
+      ADMIN_EMAIL.trim().toLowerCase();
+
+    let admin =
+      await User.findOne({
+        email: normalizedEmail,
+      });
 
     if (admin) {
       admin.name = "AVS Solar Admin";
       admin.email = normalizedEmail;
       admin.role = "admin";
       admin.isActive = true;
-
-      /*
-      Only change the password if the configured
-      admin password is different.
-      */
 
       const passwordMatches =
         await bcrypt.compare(
@@ -271,8 +383,13 @@ const createAdmin = async () => {
       await admin.save();
 
       console.log("=================================");
-      console.log("ADMIN ACCOUNT VERIFIED");
-      console.log("Email:", normalizedEmail);
+      console.log(
+        "ADMIN ACCOUNT VERIFIED"
+      );
+      console.log(
+        "Email:",
+        normalizedEmail
+      );
       console.log("=================================");
 
       return;
@@ -284,17 +401,23 @@ const createAdmin = async () => {
         10
       );
 
-    admin = await User.create({
-      name: "AVS Solar Admin",
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: "admin",
-      isActive: true,
-    });
+    admin =
+      await User.create({
+        name: "AVS Solar Admin",
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: "admin",
+        isActive: true,
+      });
 
     console.log("=================================");
-    console.log("ADMIN ACCOUNT CREATED");
-    console.log("Email:", normalizedEmail);
+    console.log(
+      "ADMIN ACCOUNT CREATED"
+    );
+    console.log(
+      "Email:",
+      normalizedEmail
+    );
     console.log("=================================");
   } catch (error) {
     console.error(
@@ -303,6 +426,7 @@ const createAdmin = async () => {
     );
   }
 };
+
 
 /*
 ====================================================
@@ -329,7 +453,9 @@ const authenticateToken = async (
 
     const token =
       authHeader.startsWith("Bearer ")
-        ? authHeader.substring(7).trim()
+        ? authHeader
+            .substring(7)
+            .trim()
         : authHeader.trim();
 
     if (!token) {
@@ -339,31 +465,30 @@ const authenticateToken = async (
       });
     }
 
-    /*
-    IMPORTANT:
-    Login and authentication MUST use
-    the exact same JWT_SECRET.
-    */
-
-    const decoded = jwt.verify(
-      token,
-      JWT_SECRET
-    );
+    const decoded =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
 
     if (!decoded.id) {
       return res.status(401).json({
         success: false,
-        message: "Invalid token payload",
+        message:
+          "Invalid token payload",
       });
     }
 
     const user =
-      await User.findById(decoded.id);
+      await User.findById(
+        decoded.id
+      );
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User not found",
+        message:
+          "User not found",
       });
     }
 
@@ -386,10 +511,12 @@ const authenticateToken = async (
 
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token",
+      message:
+        "Invalid or expired token",
     });
   }
 };
+
 
 /*
 ====================================================
@@ -410,7 +537,9 @@ const adminOnly = (
     });
   }
 
-  if (req.user.role !== "admin") {
+  if (
+    req.user.role !== "admin"
+  ) {
     return res.status(403).json({
       success: false,
       message:
@@ -420,6 +549,7 @@ const adminOnly = (
 
   next();
 };
+
 
 /*
 ====================================================
@@ -432,9 +562,16 @@ app.use(
   teamRoutes
 );
 
-app.use("/api/products", productRoutes);
+app.use(
+  "/api/products",
+  productRoutes
+);
 
-app.use("/api/contact", contactRoutes);
+app.use(
+  "/api/contact",
+  contactRoutes
+);
+
 
 /*
 ====================================================
@@ -445,15 +582,22 @@ HEALTH CHECK
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
+
     message:
       "AVS Solar Backend is running",
 
     mongodb:
-      mongoose.connection.readyState === 1
+      mongoose.connection.readyState ===
+      1
         ? "connected"
         : "disconnected",
+
+    clientUrl: CLIENT_URL,
+
+    backendUrl: BACKEND_URL,
   });
 });
+
 
 /*
 ====================================================
@@ -500,7 +644,8 @@ app.post(
           .toLowerCase();
 
       if (
-        String(password).length < 6
+        String(password).length <
+        6
       ) {
         return res.status(400).json({
           success: false,
@@ -528,23 +673,19 @@ app.post(
           10
         );
 
-      /*
-      IMPORTANT:
-      Public registration can NEVER
-      create an admin.
-      */
-
       const user =
         await User.create({
           name: cleanName,
           email: cleanEmail,
-          password: hashedPassword,
+          password:
+            hashedPassword,
           role: "user",
           isActive: true,
         });
 
       return res.status(201).json({
         success: true,
+
         message:
           "Registration successful!",
 
@@ -554,7 +695,8 @@ app.post(
           name: user.name,
           email: user.email,
           role: user.role,
-          isActive: user.isActive,
+          isActive:
+            user.isActive,
         },
       });
     } catch (error) {
@@ -563,7 +705,9 @@ app.post(
         error
       );
 
-      if (error.code === 11000) {
+      if (
+        error.code === 11000
+      ) {
         return res.status(409).json({
           success: false,
           message:
@@ -573,11 +717,13 @@ app.post(
 
       return res.status(500).json({
         success: false,
-        message: "Server error",
+        message:
+          "Server error",
       });
     }
   }
 );
+
 
 /*
 ====================================================
@@ -649,10 +795,6 @@ app.post(
         });
       }
 
-      /*
-      JWT contains ID, email and role.
-      */
-
       const token =
         jwt.sign(
           {
@@ -668,6 +810,7 @@ app.post(
 
       return res.status(200).json({
         success: true,
+
         message:
           "Login successful!",
 
@@ -681,7 +824,8 @@ app.post(
           name: user.name,
           email: user.email,
           role: user.role,
-          isActive: user.isActive,
+          isActive:
+            user.isActive,
         },
       });
     } catch (error) {
@@ -692,11 +836,13 @@ app.post(
 
       return res.status(500).json({
         success: false,
-        message: "Server error",
+        message:
+          "Server error",
       });
     }
   }
 );
+
 
 /*
 ====================================================
@@ -724,6 +870,7 @@ app.get(
     });
   }
 );
+
 
 /*
 ====================================================
@@ -753,6 +900,7 @@ app.get(
   }
 );
 
+
 /*
 ====================================================
 ADMIN - GET ALL USERS
@@ -775,23 +923,26 @@ app.get(
           .lean();
 
       const safeUsers =
-        users.map((user) => ({
-          id: user._id,
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isActive:
-            user.isActive,
-          createdAt:
-            user.createdAt,
-          updatedAt:
-            user.updatedAt,
-        }));
+        users.map(
+          (user) => ({
+            id: user._id,
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            isActive:
+              user.isActive,
+            createdAt:
+              user.createdAt,
+            updatedAt:
+              user.updatedAt,
+          })
+        );
 
       return res.status(200).json({
         success: true,
-        count: safeUsers.length,
+        count:
+          safeUsers.length,
         users: safeUsers,
       });
     } catch (error) {
@@ -808,6 +959,7 @@ app.get(
     }
   }
 );
+
 
 /*
 ====================================================
@@ -869,6 +1021,7 @@ app.put(
   }
 );
 
+
 /*
 ====================================================
 ADMIN - DEACTIVATE USER
@@ -894,10 +1047,6 @@ app.put(
             "User not found",
         });
       }
-
-      /*
-      Admin cannot deactivate himself.
-      */
 
       if (
         user._id.toString() ===
@@ -944,6 +1093,7 @@ app.put(
   }
 );
 
+
 /*
 ====================================================
 ADMIN - DELETE USER
@@ -970,10 +1120,6 @@ app.delete(
         });
       }
 
-      /*
-      Admin cannot delete himself.
-      */
-
       if (
         user._id.toString() ===
         req.user._id.toString()
@@ -985,11 +1131,9 @@ app.delete(
         });
       }
 
-      /*
-      Prevent deleting another admin.
-      */
-
-      if (user.role === "admin") {
+      if (
+        user.role === "admin"
+      ) {
         return res.status(400).json({
           success: false,
           message:
@@ -1021,6 +1165,7 @@ app.delete(
   }
 );
 
+
 /*
 ====================================================
 ADMIN DASHBOARD
@@ -1048,6 +1193,7 @@ app.get(
           isActive: true,
         });
 
+
       /*
       ----------------------------------------------
       ORDER COUNTS
@@ -1072,6 +1218,7 @@ app.get(
           },
         });
 
+
       /*
       ----------------------------------------------
       REVENUE
@@ -1091,6 +1238,7 @@ app.get(
           {
             $group: {
               _id: null,
+
               total: {
                 $sum: "$price",
               },
@@ -1104,6 +1252,7 @@ app.get(
               revenueResult[0].total
             ) || 0
           : 0;
+
 
       /*
       ----------------------------------------------
@@ -1146,6 +1295,7 @@ app.get(
           })
         );
 
+
       /*
       ----------------------------------------------
       RECENT USERS
@@ -1176,6 +1326,7 @@ app.get(
           })
         );
 
+
       /*
       ----------------------------------------------
       SALES - LAST 7 DAYS
@@ -1201,7 +1352,8 @@ app.get(
           {
             $match: {
               orderDate: {
-                $gte: sevenDaysAgo,
+                $gte:
+                  sevenDaysAgo,
               },
 
               status: {
@@ -1252,13 +1404,11 @@ app.get(
           })
         );
 
+
       /*
       ----------------------------------------------
       PRODUCT / TEAM COUNTS
       ----------------------------------------------
-
-      Team count is loaded dynamically if the
-      TeamMember model is available.
       */
 
       let totalTeamMembers = 0;
@@ -1278,12 +1428,8 @@ app.get(
         );
       }
 
-      /*
-      Product model will be added when the
-      Product system is implemented.
-      */
-
       const totalProducts = 0;
+
 
       /*
       ----------------------------------------------
@@ -1294,21 +1440,30 @@ app.get(
       return res.status(200).json({
         success: true,
 
-        users: totalUsers,
-        totalUsers,
+        users:
+          totalUsers,
+
+        totalUsers:
+          totalUsers,
 
         activeUsers,
+
         activeUserCount:
           activeUsers,
 
-        orders: totalOrders,
-        totalOrders,
+        orders:
+          totalOrders,
+
+        totalOrders:
+          totalOrders,
 
         pendingOrders,
+
         pending:
           pendingOrders,
 
         completedOrders,
+
         completed:
           completedOrders,
 
@@ -1352,6 +1507,7 @@ app.get(
     }
   }
 );
+
 
 /*
 ====================================================
@@ -1470,6 +1626,7 @@ app.post(
   }
 );
 
+
 /*
 ====================================================
 GET ALL ORDERS
@@ -1541,6 +1698,7 @@ app.get(
   }
 );
 
+
 /*
 ====================================================
 404 HANDLER
@@ -1558,6 +1716,7 @@ app.use(
   }
 );
 
+
 /*
 ====================================================
 GLOBAL ERROR HANDLER
@@ -1573,8 +1732,21 @@ app.use(
   ) => {
     console.error(
       "Global server error:",
-      error
+      error.message
     );
+
+    if (
+      error.message &&
+      error.message.startsWith(
+        "CORS blocked origin:"
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "CORS origin not allowed",
+      });
+    }
 
     return res.status(500).json({
       success: false,
@@ -1583,6 +1755,7 @@ app.use(
     });
   }
 );
+
 
 /*
 ====================================================
@@ -1607,9 +1780,13 @@ const startServer = async () => {
           `AVS Solar Backend running on port ${PORT}`
         );
 
-         console.log(
-      `Server running on port ${PORT}`
-    );
+        console.log(
+          `Client URL: ${CLIENT_URL}`
+        );
+
+        console.log(
+          `Backend URL: ${BACKEND_URL}`
+        );
 
         console.log(
           "Login: POST /api/login"
@@ -1633,6 +1810,14 @@ const startServer = async () => {
 
         console.log(
           "Team: /api/team"
+        );
+
+        console.log(
+          "Products: /api/products"
+        );
+
+        console.log(
+          "Contact: /api/contact"
         );
 
         console.log(
