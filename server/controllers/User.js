@@ -3,12 +3,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import dns from "dns";
 import nodemailer from "nodemailer";
 import User from "../models/User.js";
 
 
-dns.setDefaultResultOrder("ipv4first");
+
 
 dotenv.config();
 
@@ -23,13 +22,19 @@ const BACKEND_URL = process.env.BACKEND_URL;
 // =====================================================
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "74.125.79.109",
   port: 587,
   secure: false,
   requireTLS: true,
+
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
+  },
+
+  tls: {
+    servername: "smtp.gmail.com",
+    minVersion: "TLSv1.2",
   },
 });
 
