@@ -327,7 +327,7 @@ export const verifyEmail = async (req, res) => {
 
     if (!token) {
       return res.redirect(
-        "http://localhost:5173/email-verified?status=error&message=Verification%20token%20is%20missing"
+        `${FRONTEND_URL}/email-verified?status=error&message=Verification%20token%20is%20missing`
       );
     }
 
@@ -337,14 +337,13 @@ export const verifyEmail = async (req, res) => {
 
     if (!user) {
       return res.redirect(
-        "http://localhost:5173/email-verified?status=error&message=Invalid%20or%20expired%20verification%20link"
+        `${FRONTEND_URL}/email-verified?status=error&message=Invalid%20or%20expired%20verification%20link`
       );
     }
 
-    // Already verified
     if (user.isVerified) {
       return res.redirect(
-        "http://localhost:5173/email-verified?status=already"
+        `${FRONTEND_URL}/email-verified?status=already`
       );
     }
 
@@ -353,17 +352,23 @@ export const verifyEmail = async (req, res) => {
 
     await user.save();
 
-    console.log("Email verified successfully:", user.email);
+    console.log(
+      "Email verified successfully:",
+      user.email
+    );
 
     return res.redirect(
-      "http://localhost:5173/email-verified?status=success"
+      `${FRONTEND_URL}/email-verified?status=success`
     );
 
   } catch (error) {
-    console.error("Email verification error:", error);
+    console.error(
+      "Email verification error:",
+      error
+    );
 
     return res.redirect(
-      "http://localhost:5173/email-verified?status=error&message=Something%20went%20wrong"
+      `${FRONTEND_URL}/email-verified?status=error&message=Something%20went%20wrong`
     );
   }
 };
