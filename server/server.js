@@ -4,9 +4,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+
+
 import path from "path";
 import { fileURLToPath } from "url";
-
+import userRoutes from "./routes/user.js";
 import teamRoutes from "./routes/teamRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
@@ -16,26 +18,30 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-/*
-====================================================
-APP CONFIGURATION
-====================================================
-*/
-
 const app = express();
 
 const PORT = process.env.PORT || 5000;
 
 const MONGO_URI = process.env.MONGO_URI;
-
 const JWT_SECRET = process.env.JWT_SECRET;
-
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+
+
+
+
+
+/*
+====================================================
+STATIC UPLOADS
+====================================================
+*/
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
 
 
 
@@ -561,6 +567,8 @@ const adminOnly = (
 
   next();
 };
+
+app.use("/api/user", userRoutes);
 
 
 /*

@@ -36,7 +36,7 @@ router.get(
   getTeamMember
 );
 
-
+router.get("/public", getActiveTeamMembers); 
 /*
 ====================================================
 CREATE

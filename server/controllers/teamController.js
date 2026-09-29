@@ -1,12 +1,19 @@
+import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";  // ← ADD THIS
 import TeamMember from "../models/TeamMember.js";
+
+const __filename = fileURLToPath(import.meta.url);  // ← ADD THIS
+const __dirname = path.dirname(__filename);
 
 const BACKEND_URL =
   process.env.BACKEND_URL ||
   "http://localhost:5000";
 
 
+
+  
 /*
 ====================================================
 HELPERS
@@ -32,44 +39,28 @@ const getImageUrl = (filename) => {
   return `${BACKEND_URL}/uploads/team/${filename}`;
 };
 
-
 const deleteOldImage = (image) => {
   try {
-    if (!image) {
-      return;
-    }
+    if (!image) return;
 
-    if (
-      image.startsWith("http://") ||
-      image.startsWith("https://")
-    ) {
+    if (image.startsWith("http://") || image.startsWith("https://")) {
       return;
     }
 
     let relativePath = image;
 
-    if (
-      relativePath.startsWith(
-        "/uploads/"
-      )
-    ) {
-      relativePath =
-        relativePath.substring(1);
+    if (relativePath.startsWith("/uploads/")) {
+      relativePath = relativePath.substring(1);
     }
 
-    const filePath = path.join(
-      process.cwd(),
-      relativePath
-    );
+    // ✅ CHANGED from process.cwd() to __dirname + ".." (project root)
+    const filePath = path.join(__dirname, "..", relativePath);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   } catch (error) {
-    console.error(
-      "Failed to delete old team image:",
-      error.message
-    );
+    console.error("Failed to delete old team image:", error.message);
   }
 };
 

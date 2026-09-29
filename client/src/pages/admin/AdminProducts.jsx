@@ -1,4 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FiPlus,
   FiEdit2,
@@ -12,10 +17,20 @@ import {
   FiDollarSign,
   FiBox,
   FiTag,
+  FiUpload,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import api from "../../services/api";
 import "./AdminProducts.css";
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
 
 const emptyForm = {
   name: "",
@@ -26,11 +41,55 @@ const emptyForm = {
   price: "",
   discountPrice: "",
   stock: "",
-  image: "",
   featured: false,
   isActive: true,
   specifications: "",
 };
+
+// ============================================================
+// IMAGE URL HELPERS
+// ============================================================
+
+const getBackendUrl = () => {
+  const apiUrl =
+    import.meta.env.VITE_API_URL ||
+    api?.defaults?.baseURL ||
+    "";
+
+  if (apiUrl) {
+    try {
+      return new URL(apiUrl, window.location.origin).origin;
+    } catch {
+      // ignore and use fallback
+    }
+  }
+
+  return "http://localhost:5000";
+};
+
+const getImageUrl = (image) => {
+  if (!image) return "";
+
+  const value = String(image).trim().replace(/\\/g, "/");
+
+  if (!value) return "";
+
+  // Full URL / browser preview
+  if (/^(https?:|blob:|data:)/i.test(value)) {
+    return value;
+  }
+
+  // Relative path such as /uploads/products/file.jpg
+  return `${getBackendUrl()}${
+    value.startsWith("/") ? value : `/${value}`
+  }`;
+};
+
+const getErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  error?.message ||
+  fallback;
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
@@ -46,6 +105,36 @@ const AdminProducts = () => {
   const [editingProduct, setEditingProduct] = useState(null);
 
   const [form, setForm] = useState(emptyForm);
+
+  // Image upload state
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [removeImage, setRemoveImage] = useState(false);
+
+  const fileInputRef = useRef(null);
+
+  // ============================================================
+  // CLEAN UP BLOB PREVIEW URLS
+  // Runs when the preview changes and when the page unmounts.
+  // ============================================================
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const resetImageState = () => {
+    setImageFile(null);
+    setImagePreview("");
+    setRemoveImage(false);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   // ============================================================
   // LOAD PRODUCTS
@@ -67,7 +156,7 @@ const AdminProducts = () => {
       console.error("Load products error:", error);
 
       toast.error(
-        error?.message || "Unable to load products"
+        getErrorMessage(error, "Unable to load products")
       );
 
       setProducts([]);
@@ -94,12 +183,59 @@ const AdminProducts = () => {
   };
 
   // ============================================================
+  // IMAGE CHANGE
+  // ============================================================
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast.error(
+        "Only JPG, JPEG, PNG and WEBP images are allowed"
+      );
+
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error("Image must be less than 5MB");
+
+      e.target.value = "";
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setRemoveImage(false);
+  };
+
+  // ============================================================
+  // REMOVE IMAGE
+  // ============================================================
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+
+    // Only tell the server to delete if the product had an image
+    setRemoveImage(Boolean(editingProduct?.image));
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // ============================================================
   // ADD PRODUCT
   // ============================================================
 
   const handleAdd = () => {
     setEditingProduct(null);
     setForm(emptyForm);
+    resetImageState();
     setShowModal(true);
   };
 
@@ -115,13 +251,11 @@ const AdminProducts = () => {
     if (Array.isArray(product.specifications)) {
       specifications = product.specifications
         .map((item) => {
-          if (
-            typeof item === "object" &&
-            item !== null
-          ) {
-            return `${item.name || ""}: ${
-              item.value || ""
-            }`;
+          if (typeof item === "object" && item !== null) {
+            const name = item.name || item.key || "";
+            const value = item.value || "";
+
+            return value ? `${name}: ${value}` : name;
           }
 
           return String(item);
@@ -131,9 +265,7 @@ const AdminProducts = () => {
       typeof product.specifications === "object" &&
       product.specifications !== null
     ) {
-      specifications = Object.entries(
-        product.specifications
-      )
+      specifications = Object.entries(product.specifications)
         .map(([key, value]) => `${key}: ${value}`)
         .join("\n");
     } else {
@@ -146,19 +278,13 @@ const AdminProducts = () => {
       brand: product.brand || "",
       sku: product.sku || "",
       description: product.description || "",
-      price:
-        product.price !== undefined
-          ? product.price
-          : "",
+      price: product.price !== undefined ? product.price : "",
       discountPrice:
-        product.discountPrice !== undefined
+        product.discountPrice !== undefined &&
+        product.discountPrice !== null
           ? product.discountPrice
           : "",
-      stock:
-        product.stock !== undefined
-          ? product.stock
-          : "",
-      image: product.image || "",
+      stock: product.stock !== undefined ? product.stock : "",
       featured: Boolean(product.featured),
       isActive:
         typeof product.isActive === "boolean"
@@ -166,6 +292,10 @@ const AdminProducts = () => {
           : true,
       specifications,
     });
+
+    // Reset the file input, then show the current saved image
+    resetImageState();
+    setImagePreview(getImageUrl(product.image));
 
     setShowModal(true);
   };
@@ -180,6 +310,7 @@ const AdminProducts = () => {
     setShowModal(false);
     setEditingProduct(null);
     setForm(emptyForm);
+    resetImageState();
   };
 
   // ============================================================
@@ -197,7 +328,7 @@ const AdminProducts = () => {
       return false;
     }
 
-    if (!form.price && form.price !== 0) {
+    if (form.price === "" || form.price === null) {
       toast.error("Please enter product price");
       return false;
     }
@@ -210,17 +341,10 @@ const AdminProducts = () => {
     }
 
     if (form.discountPrice !== "") {
-      const discountPrice = Number(
-        form.discountPrice
-      );
+      const discountPrice = Number(form.discountPrice);
 
-      if (
-        Number.isNaN(discountPrice) ||
-        discountPrice < 0
-      ) {
-        toast.error(
-          "Please enter a valid discount price"
-        );
+      if (Number.isNaN(discountPrice) || discountPrice < 0) {
+        toast.error("Please enter a valid discount price");
         return false;
       }
 
@@ -268,19 +392,14 @@ const AdminProducts = () => {
         }
 
         return {
-          name: line
-            .slice(0, separatorIndex)
-            .trim(),
-
-          value: line
-            .slice(separatorIndex + 1)
-            .trim(),
+          name: line.slice(0, separatorIndex).trim(),
+          value: line.slice(separatorIndex + 1).trim(),
         };
       });
   };
 
   // ============================================================
-  // SAVE PRODUCT
+  // SAVE PRODUCT (multipart/form-data)
   // ============================================================
 
   const handleSubmit = async (e) => {
@@ -291,64 +410,70 @@ const AdminProducts = () => {
     try {
       setSaving(true);
 
-      const payload = {
-        name: form.name.trim(),
-        category: form.category.trim(),
-        brand: form.brand.trim(),
-        sku: form.sku.trim(),
-        description: form.description.trim(),
+      const formData = new FormData();
 
-        price: Number(form.price),
+      formData.append("name", form.name.trim());
+      formData.append("category", form.category.trim());
+      formData.append("brand", form.brand.trim());
+      formData.append("sku", form.sku.trim());
+      formData.append("description", form.description.trim());
 
-        discountPrice:
-          form.discountPrice === ""
-            ? null
-            : Number(form.discountPrice),
+      formData.append("price", String(Number(form.price)));
 
-        stock:
-          form.stock === ""
-            ? 0
-            : Number(form.stock),
+      formData.append(
+        "discountPrice",
+        form.discountPrice === ""
+          ? ""
+          : String(Number(form.discountPrice))
+      );
 
-        image: form.image.trim(),
+      formData.append(
+        "stock",
+        form.stock === "" ? "0" : String(Number(form.stock))
+      );
 
-        featured: Boolean(form.featured),
+      formData.append("featured", String(Boolean(form.featured)));
+      formData.append("isActive", String(Boolean(form.isActive)));
 
-        isActive: Boolean(form.isActive),
+      formData.append(
+        "specifications",
+        JSON.stringify(parseSpecifications())
+      );
 
-        specifications: parseSpecifications(),
-      };
+      // Field name MUST be "image" (matches upload.single("image"))
+      if (imageFile) {
+        formData.append("image", imageFile);
+      } else if (editingProduct && removeImage) {
+        formData.append("removeImage", "true");
+      }
 
       if (editingProduct) {
         await api.put(
           `/products/${editingProduct._id}`,
-          payload
+          formData
         );
 
-        toast.success(
-          "Product updated successfully"
-        );
+        toast.success("Product updated successfully");
       } else {
-        await api.post("/products", payload);
+        await api.post("/products", formData);
 
-        toast.success(
-          "Product added successfully"
-        );
+        toast.success("Product added successfully");
       }
 
+      // closeModal() is blocked while saving, so reset manually
+      setSaving(false);
       closeModal();
 
       await loadProducts();
     } catch (error) {
       console.error("Save product error:", error);
+      console.error("Server response:", error?.response?.data);
 
       toast.error(
-        error?.message ||
-          `Unable to ${
-            editingProduct
-              ? "update"
-              : "add"
-          } product`
+        getErrorMessage(
+          error,
+          `Unable to ${editingProduct ? "update" : "add"} product`
+        )
       );
     } finally {
       setSaving(false);
@@ -367,60 +492,37 @@ const AdminProducts = () => {
     if (!confirmed) return;
 
     try {
-      await api.delete(
-        `/products/${product._id}`
-      );
+      await api.delete(`/products/${product._id}`);
 
-      toast.success(
-        "Product deleted successfully"
-      );
+      toast.success("Product deleted successfully");
 
       setProducts((prev) =>
-        prev.filter(
-          (item) => item._id !== product._id
-        )
+        prev.filter((item) => item._id !== product._id)
       );
     } catch (error) {
-      console.error(
-        "Delete product error:",
-        error
-      );
+      console.error("Delete product error:", error);
 
       toast.error(
-        error?.message ||
-          "Unable to delete product"
+        getErrorMessage(error, "Unable to delete product")
       );
     }
   };
 
   // ============================================================
   // TOGGLE STATUS
+  // Sends ONLY the changed field
   // ============================================================
 
   const handleToggleStatus = async (product) => {
     try {
-      const payload = {
-        ...product,
+      await api.put(`/products/${product._id}`, {
         isActive: !product.isActive,
-      };
-
-      delete payload._id;
-      delete payload.createdAt;
-      delete payload.updatedAt;
-      delete payload.__v;
-
-      await api.put(
-        `/products/${product._id}`,
-        payload
-      );
+      });
 
       setProducts((prev) =>
         prev.map((item) =>
           item._id === product._id
-            ? {
-                ...item,
-                isActive: !item.isActive,
-              }
+            ? { ...item, isActive: !item.isActive }
             : item
         )
       );
@@ -431,46 +533,29 @@ const AdminProducts = () => {
           : "Product activated"
       );
     } catch (error) {
-      console.error(
-        "Toggle product status error:",
-        error
-      );
+      console.error("Toggle product status error:", error);
 
       toast.error(
-        error?.message ||
-          "Unable to update product status"
+        getErrorMessage(error, "Unable to update product status")
       );
     }
   };
 
   // ============================================================
   // TOGGLE FEATURED
+  // Sends ONLY the changed field
   // ============================================================
 
   const handleToggleFeatured = async (product) => {
     try {
-      const payload = {
-        ...product,
+      await api.put(`/products/${product._id}`, {
         featured: !product.featured,
-      };
-
-      delete payload._id;
-      delete payload.createdAt;
-      delete payload.updatedAt;
-      delete payload.__v;
-
-      await api.put(
-        `/products/${product._id}`,
-        payload
-      );
+      });
 
       setProducts((prev) =>
         prev.map((item) =>
           item._id === product._id
-            ? {
-                ...item,
-                featured: !item.featured,
-              }
+            ? { ...item, featured: !item.featured }
             : item
         )
       );
@@ -481,14 +566,10 @@ const AdminProducts = () => {
           : "Added to featured products"
       );
     } catch (error) {
-      console.error(
-        "Toggle featured error:",
-        error
-      );
+      console.error("Toggle featured error:", error);
 
       toast.error(
-        error?.message ||
-          "Unable to update featured status"
+        getErrorMessage(error, "Unable to update featured status")
       );
     }
   };
@@ -501,9 +582,7 @@ const AdminProducts = () => {
     return [
       ...new Set(
         products
-          .map((product) =>
-            product.category?.trim()
-          )
+          .map((product) => product.category?.trim())
           .filter(Boolean)
       ),
     ].sort();
@@ -514,25 +593,15 @@ const AdminProducts = () => {
   // ============================================================
 
   const filteredProducts = useMemo(() => {
-    const query = search
-      .toLowerCase()
-      .trim();
+    const query = search.toLowerCase().trim();
 
     return products.filter((product) => {
       const matchesSearch =
         !query ||
-        product.name
-          ?.toLowerCase()
-          .includes(query) ||
-        product.category
-          ?.toLowerCase()
-          .includes(query) ||
-        product.brand
-          ?.toLowerCase()
-          .includes(query) ||
-        product.sku
-          ?.toLowerCase()
-          .includes(query);
+        product.name?.toLowerCase().includes(query) ||
+        product.category?.toLowerCase().includes(query) ||
+        product.brand?.toLowerCase().includes(query) ||
+        product.sku?.toLowerCase().includes(query);
 
       const matchesCategory =
         categoryFilter === "all" ||
@@ -544,18 +613,9 @@ const AdminProducts = () => {
           ? product.isActive
           : !product.isActive);
 
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesStatus
-      );
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [
-    products,
-    search,
-    categoryFilter,
-    statusFilter,
-  ]);
+  }, [products, search, categoryFilter, statusFilter]);
 
   // ============================================================
   // HELPERS
@@ -574,9 +634,7 @@ const AdminProducts = () => {
     return {
       price,
       discount,
-      hasDiscount:
-        discount !== null &&
-        discount < price,
+      hasDiscount: discount !== null && discount < price,
     };
   };
 
@@ -584,10 +642,7 @@ const AdminProducts = () => {
     const quantity = Number(stock || 0);
 
     if (quantity <= 0) {
-      return {
-        text: "Out of Stock",
-        className: "out",
-      };
+      return { text: "Out of Stock", className: "out" };
     }
 
     if (quantity <= 5) {
@@ -617,10 +672,7 @@ const AdminProducts = () => {
         <div>
           <h1>Product Management</h1>
 
-          <p>
-            Manage products available in your solar
-            store
-          </p>
+          <p>Manage products available in your solar store</p>
         </div>
 
         <button
@@ -657,12 +709,7 @@ const AdminProducts = () => {
           <div>
             <span>Active Products</span>
             <strong>
-              {
-                products.filter(
-                  (product) =>
-                    product.isActive
-                ).length
-              }
+              {products.filter((product) => product.isActive).length}
             </strong>
           </div>
         </div>
@@ -677,9 +724,7 @@ const AdminProducts = () => {
             <strong>
               {
                 products.filter(
-                  (product) =>
-                    Number(product.stock || 0) <=
-                    0
+                  (product) => Number(product.stock || 0) <= 0
                 ).length
               }
             </strong>
@@ -694,12 +739,7 @@ const AdminProducts = () => {
           <div>
             <span>Featured</span>
             <strong>
-              {
-                products.filter(
-                  (product) =>
-                    product.featured
-                ).length
-              }
+              {products.filter((product) => product.featured).length}
             </strong>
           </div>
         </div>
@@ -717,30 +757,19 @@ const AdminProducts = () => {
             type="text"
             placeholder="Search products, brand or SKU..."
             value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
         <div className="admin-products-filters">
           <select
             value={categoryFilter}
-            onChange={(e) =>
-              setCategoryFilter(
-                e.target.value
-              )
-            }
+            onChange={(e) => setCategoryFilter(e.target.value)}
           >
-            <option value="all">
-              All Categories
-            </option>
+            <option value="all">All Categories</option>
 
             {categories.map((category) => (
-              <option
-                value={category}
-                key={category}
-              >
+              <option value={category} key={category}>
                 {category}
               </option>
             ))}
@@ -748,23 +777,11 @@ const AdminProducts = () => {
 
           <select
             value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(
-                e.target.value
-              )
-            }
+            onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="all">
-              All Status
-            </option>
-
-            <option value="active">
-              Active
-            </option>
-
-            <option value="inactive">
-              Inactive
-            </option>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
           </select>
 
           <button
@@ -774,11 +791,7 @@ const AdminProducts = () => {
             disabled={loading}
           >
             <FiRefreshCw
-              className={
-                loading
-                  ? "admin-products-spin"
-                  : ""
-              }
+              className={loading ? "admin-products-spin" : ""}
             />
             Refresh
           </button>
@@ -793,9 +806,7 @@ const AdminProducts = () => {
         <div className="admin-products-loading">
           <div className="admin-products-loader"></div>
 
-          <p>
-            Loading products...
-          </p>
+          <p>Loading products...</p>
         </div>
       ) : filteredProducts.length === 0 ? (
         <div className="admin-products-empty">
@@ -832,221 +843,177 @@ const AdminProducts = () => {
         </div>
       ) : (
         <div className="admin-products-grid">
-          {filteredProducts.map(
-            (product) => {
-              const pricing =
-                getProductPrice(product);
+          {filteredProducts.map((product) => {
+            const pricing = getProductPrice(product);
+            const stockStatus = getStockStatus(product.stock);
+            const productImageUrl = getImageUrl(product.image);
 
-              const stockStatus =
-                getStockStatus(
-                  product.stock
-                );
+            return (
+              <div
+                className={`admin-product-card ${
+                  !product.isActive
+                    ? "admin-product-card-inactive"
+                    : ""
+                }`}
+                key={product._id}
+              >
+                {/* IMAGE */}
 
-              return (
-                <div
-                  className={`admin-product-card ${
-                    !product.isActive
-                      ? "admin-product-card-inactive"
-                      : ""
-                  }`}
-                  key={product._id}
-                >
-                  {/* IMAGE */}
+                <div className="admin-product-image">
+                  {productImageUrl ? (
+                    <img
+                      src={productImageUrl}
+                      alt={product.name}
+                      onError={(e) => {
+                        console.error(
+                          "Failed to load product image:",
+                          productImageUrl
+                        );
 
-                  <div className="admin-product-image">
-                    {product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        onError={(e) => {
-                          e.currentTarget.style.display =
-                            "none";
+                        e.currentTarget.style.display = "none";
 
-                          const fallback =
-                            e.currentTarget
-                              .nextSibling;
+                        const fallback =
+                          e.currentTarget.nextSibling;
 
-                          if (fallback) {
-                            fallback.style.display =
-                              "flex";
-                          }
-                        }}
-                      />
-                    ) : null}
-
-                    <div
-                      className="admin-product-image-fallback"
-                      style={{
-                        display:
-                          product.image
-                            ? "none"
-                            : "flex",
-                      }}
-                    >
-                      <FiPackage />
-                    </div>
-
-                    <div className="admin-product-badges">
-                      {!product.isActive && (
-                        <span className="inactive">
-                          Inactive
-                        </span>
-                      )}
-
-                      {product.featured && (
-                        <span className="featured">
-                          <FiStar />
-                          Featured
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* BODY */}
-
-                  <div className="admin-product-body">
-                    <div className="admin-product-category">
-                      <FiTag />
-
-                      {product.category}
-                    </div>
-
-                    <h3>
-                      {product.name}
-                    </h3>
-
-                    {product.brand && (
-                      <p className="admin-product-brand">
-                        {product.brand}
-                      </p>
-                    )}
-
-                    {product.description && (
-                      <p className="admin-product-description">
-                        {
-                          product.description
+                        if (fallback) {
+                          fallback.style.display = "flex";
                         }
-                      </p>
-                    )}
+                      }}
+                    />
+                  ) : null}
 
-                    {/* PRICE */}
-
-                    <div className="admin-product-price">
-                      {pricing.hasDiscount ? (
-                        <>
-                          <strong>
-                            ₹
-                            {pricing.discount.toLocaleString(
-                              "en-IN"
-                            )}
-                          </strong>
-
-                          <span>
-                            ₹
-                            {pricing.price.toLocaleString(
-                              "en-IN"
-                            )}
-                          </span>
-                        </>
-                      ) : (
-                        <strong>
-                          ₹
-                          {pricing.price.toLocaleString(
-                            "en-IN"
-                          )}
-                        </strong>
-                      )}
-                    </div>
-
-                    {/* STOCK */}
-
-                    <div className="admin-product-stock-row">
-                      <span
-                        className={`admin-product-stock ${stockStatus.className}`}
-                      >
-                        {stockStatus.text}
-                      </span>
-
-                      {product.sku && (
-                        <span className="admin-product-sku">
-                          SKU: {product.sku}
-                        </span>
-                      )}
-                    </div>
+                  <div
+                    className="admin-product-image-fallback"
+                    style={{
+                      display: productImageUrl ? "none" : "flex",
+                    }}
+                  >
+                    <FiPackage />
                   </div>
 
-                  {/* ACTIONS */}
+                  <div className="admin-product-badges">
+                    {!product.isActive && (
+                      <span className="inactive">Inactive</span>
+                    )}
 
-                  <div className="admin-product-actions">
-                    <button
-                      type="button"
-                      className="admin-product-edit-btn"
-                      onClick={() =>
-                        handleEdit(
-                          product
-                        )
-                      }
-                    >
-                      <FiEdit2 />
-                      Edit
-                    </button>
-
-                    <button
-                      type="button"
-                      className={`admin-product-status-btn ${
-                        product.isActive
-                          ? "deactivate"
-                          : "activate"
-                      }`}
-                      onClick={() =>
-                        handleToggleStatus(
-                          product
-                        )
-                      }
-                    >
-                      {product.isActive
-                        ? "Deactivate"
-                        : "Activate"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className={`admin-product-feature-btn ${
-                        product.featured
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        handleToggleFeatured(
-                          product
-                        )
-                      }
-                      title={
-                        product.featured
-                          ? "Remove featured"
-                          : "Make featured"
-                      }
-                    >
-                      <FiStar />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="admin-product-delete-btn"
-                      onClick={() =>
-                        handleDelete(
-                          product
-                        )
-                      }
-                      title="Delete product"
-                    >
-                      <FiTrash2 />
-                    </button>
+                    {product.featured && (
+                      <span className="featured">
+                        <FiStar />
+                        Featured
+                      </span>
+                    )}
                   </div>
                 </div>
-              );
-            }
-          )}
+
+                {/* BODY */}
+
+                <div className="admin-product-body">
+                  <div className="admin-product-category">
+                    <FiTag />
+
+                    {product.category}
+                  </div>
+
+                  <h3>{product.name}</h3>
+
+                  {product.brand && (
+                    <p className="admin-product-brand">
+                      {product.brand}
+                    </p>
+                  )}
+
+                  {product.description && (
+                    <p className="admin-product-description">
+                      {product.description}
+                    </p>
+                  )}
+
+                  {/* PRICE */}
+
+                  <div className="admin-product-price">
+                    {pricing.hasDiscount ? (
+                      <>
+                        <strong>
+                          ₹{pricing.discount.toLocaleString("en-IN")}
+                        </strong>
+
+                        <span>
+                          ₹{pricing.price.toLocaleString("en-IN")}
+                        </span>
+                      </>
+                    ) : (
+                      <strong>
+                        ₹{pricing.price.toLocaleString("en-IN")}
+                      </strong>
+                    )}
+                  </div>
+
+                  {/* STOCK */}
+
+                  <div className="admin-product-stock-row">
+                    <span
+                      className={`admin-product-stock ${stockStatus.className}`}
+                    >
+                      {stockStatus.text}
+                    </span>
+
+                    {product.sku && (
+                      <span className="admin-product-sku">
+                        SKU: {product.sku}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* ACTIONS */}
+
+                <div className="admin-product-actions">
+                  <button
+                    type="button"
+                    className="admin-product-edit-btn"
+                    onClick={() => handleEdit(product)}
+                  >
+                    <FiEdit2 />
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`admin-product-status-btn ${
+                      product.isActive ? "deactivate" : "activate"
+                    }`}
+                    onClick={() => handleToggleStatus(product)}
+                  >
+                    {product.isActive ? "Deactivate" : "Activate"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`admin-product-feature-btn ${
+                      product.featured ? "selected" : ""
+                    }`}
+                    onClick={() => handleToggleFeatured(product)}
+                    title={
+                      product.featured
+                        ? "Remove featured"
+                        : "Make featured"
+                    }
+                  >
+                    <FiStar />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-product-delete-btn"
+                    onClick={() => handleDelete(product)}
+                    title="Delete product"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1058,11 +1025,7 @@ const AdminProducts = () => {
         <div
           className="admin-products-modal-overlay"
           onMouseDown={(e) => {
-            if (
-              e.target ===
-                e.currentTarget &&
-              !saving
-            ) {
+            if (e.target === e.currentTarget && !saving) {
               closeModal();
             }
           }}
@@ -1073,9 +1036,7 @@ const AdminProducts = () => {
             <div className="admin-products-modal-header">
               <div>
                 <h2>
-                  {editingProduct
-                    ? "Edit Product"
-                    : "Add Product"}
+                  {editingProduct ? "Edit Product" : "Add Product"}
                 </h2>
 
                 <p>
@@ -1104,93 +1065,67 @@ const AdminProducts = () => {
               {/* BASIC INFORMATION */}
 
               <div className="admin-products-section">
-                <h3>
-                  Product Information
-                </h3>
+                <h3>Product Information</h3>
 
                 <div className="admin-products-form-grid">
                   <div className="admin-products-field">
-                    <label>
-                      Product Name *
-                    </label>
+                    <label>Product Name *</label>
 
                     <input
                       type="text"
                       name="name"
                       value={form.name}
-                      onChange={
-                        handleChange
-                      }
+                      onChange={handleChange}
                       placeholder="e.g. 5kW Solar Panel"
                       required
                     />
                   </div>
 
                   <div className="admin-products-field">
-                    <label>
-                      Category *
-                    </label>
+                    <label>Category *</label>
 
                     <input
                       type="text"
                       name="category"
-                      value={
-                        form.category
-                      }
-                      onChange={
-                        handleChange
-                      }
+                      value={form.category}
+                      onChange={handleChange}
                       placeholder="e.g. Solar Panels"
                       required
                     />
                   </div>
 
                   <div className="admin-products-field">
-                    <label>
-                      Brand
-                    </label>
+                    <label>Brand</label>
 
                     <input
                       type="text"
                       name="brand"
                       value={form.brand}
-                      onChange={
-                        handleChange
-                      }
+                      onChange={handleChange}
                       placeholder="e.g. Tata Power"
                     />
                   </div>
 
                   <div className="admin-products-field">
-                    <label>
-                      SKU
-                    </label>
+                    <label>SKU</label>
 
                     <input
                       type="text"
                       name="sku"
                       value={form.sku}
-                      onChange={
-                        handleChange
-                      }
+                      onChange={handleChange}
                       placeholder="e.g. SP-5000-001"
                     />
                   </div>
                 </div>
 
                 <div className="admin-products-field">
-                  <label>
-                    Description
-                  </label>
+                  <label>Description</label>
 
                   <textarea
                     name="description"
-                    value={
-                      form.description
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={form.description}
+                    onChange={handleChange}
                     placeholder="Describe the product..."
                     rows="4"
                   />
@@ -1204,9 +1139,7 @@ const AdminProducts = () => {
 
                 <div className="admin-products-form-grid">
                   <div className="admin-products-field">
-                    <label>
-                      Price *
-                    </label>
+                    <label>Price *</label>
 
                     <div className="admin-products-input-icon">
                       <FiDollarSign />
@@ -1215,9 +1148,7 @@ const AdminProducts = () => {
                         type="number"
                         name="price"
                         value={form.price}
-                        onChange={
-                          handleChange
-                        }
+                        onChange={handleChange}
                         placeholder="0"
                         min="0"
                         step="0.01"
@@ -1227,9 +1158,7 @@ const AdminProducts = () => {
                   </div>
 
                   <div className="admin-products-field">
-                    <label>
-                      Discount Price
-                    </label>
+                    <label>Discount Price</label>
 
                     <div className="admin-products-input-icon">
                       <FiDollarSign />
@@ -1237,12 +1166,8 @@ const AdminProducts = () => {
                       <input
                         type="number"
                         name="discountPrice"
-                        value={
-                          form.discountPrice
-                        }
-                        onChange={
-                          handleChange
-                        }
+                        value={form.discountPrice}
+                        onChange={handleChange}
                         placeholder="Optional"
                         min="0"
                         step="0.01"
@@ -1251,9 +1176,7 @@ const AdminProducts = () => {
                   </div>
 
                   <div className="admin-products-field">
-                    <label>
-                      Stock Quantity
-                    </label>
+                    <label>Stock Quantity</label>
 
                     <div className="admin-products-input-icon">
                       <FiBox />
@@ -1262,9 +1185,7 @@ const AdminProducts = () => {
                         type="number"
                         name="stock"
                         value={form.stock}
-                        onChange={
-                          handleChange
-                        }
+                        onChange={handleChange}
                         placeholder="0"
                         min="0"
                         step="1"
@@ -1277,60 +1198,79 @@ const AdminProducts = () => {
               {/* IMAGE */}
 
               <div className="admin-products-section">
-                <h3>
-                  Product Image
-                </h3>
+                <h3>Product Image</h3>
 
                 <div className="admin-products-field">
-                  <label>
-                    Image URL
-                  </label>
+                  <label>Upload from your computer</label>
 
                   <input
-                    type="url"
-                    name="image"
-                    value={form.image}
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="https://example.com/product.jpg"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleImageChange}
                   />
 
-                  {form.image && (
+                  {imagePreview && (
                     <div className="admin-products-image-preview">
                       <img
-                        src={form.image}
+                        key={imagePreview}
+                        src={imagePreview}
                         alt="Product preview"
                         onError={(e) => {
-                          e.currentTarget.style.display =
-                            "none";
+                          console.error(
+                            "Failed to load preview image:",
+                            e.currentTarget.src
+                          );
+
+                          e.currentTarget.style.display = "none";
                         }}
                       />
                     </div>
                   )}
+
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      className="admin-products-remove-image"
+                      onClick={handleRemoveImage}
+                    >
+                      <FiTrash2 />
+                      Remove image
+                    </button>
+                  )}
+
+                  {removeImage && !imagePreview && (
+                    <small>
+                      The current image will be removed when you
+                      save.
+                    </small>
+                  )}
+
+                  {imageFile && (
+                    <small>
+                      Selected: <strong>{imageFile.name}</strong>
+                    </small>
+                  )}
+
+                  <small>
+                    <FiUpload /> JPG, JPEG, PNG or WEBP. Maximum
+                    size: 5MB.
+                  </small>
                 </div>
               </div>
 
               {/* SPECIFICATIONS */}
 
               <div className="admin-products-section">
-                <h3>
-                  Specifications
-                </h3>
+                <h3>Specifications</h3>
 
                 <div className="admin-products-field">
-                  <label>
-                    Product Specifications
-                  </label>
+                  <label>Product Specifications</label>
 
                   <textarea
                     name="specifications"
-                    value={
-                      form.specifications
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={form.specifications}
+                    onChange={handleChange}
                     placeholder={
                       "Power: 5kW\nEfficiency: 21%\nWarranty: 25 Years"
                     }
@@ -1338,12 +1278,9 @@ const AdminProducts = () => {
                   />
 
                   <small>
-                    Add one specification per
-                    line using:
+                    Add one specification per line using:
                     <br />
-                    <strong>
-                      Name: Value
-                    </strong>
+                    <strong>Name: Value</strong>
                   </small>
                 </div>
               </div>
@@ -1355,12 +1292,8 @@ const AdminProducts = () => {
                   <input
                     type="checkbox"
                     name="featured"
-                    checked={
-                      form.featured
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    checked={form.featured}
+                    onChange={handleChange}
                   />
 
                   <span>
@@ -1373,12 +1306,8 @@ const AdminProducts = () => {
                   <input
                     type="checkbox"
                     name="isActive"
-                    checked={
-                      form.isActive
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    checked={form.isActive}
+                    onChange={handleChange}
                   />
 
                   <span>

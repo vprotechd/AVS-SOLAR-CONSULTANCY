@@ -1,27 +1,23 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
-// ============================================================
-// TEAM UPLOAD DIRECTORY
-// ============================================================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const uploadDir = path.join(
-  process.cwd(),
+  __dirname,
+  "..",
   "uploads",
   "team"
 );
 
-// Create directory automatically
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, {
-    recursive: true,
-  });
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ============================================================
-// STORAGE
-// ============================================================
+console.log("Team upload directory:", uploadDir);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -29,9 +25,7 @@ const storage = multer.diskStorage({
   },
 
   filename: (_req, file, cb) => {
-    const ext = path
-      .extname(file.originalname)
-      .toLowerCase();
+    const ext = path.extname(file.originalname).toLowerCase();
 
     const baseName = path
       .basename(file.originalname, ext)
@@ -45,10 +39,6 @@ const storage = multer.diskStorage({
   },
 });
 
-// ============================================================
-// FILE FILTER
-// ============================================================
-
 const fileFilter = (_req, file, cb) => {
   const allowedTypes = [
     "image/jpeg",
@@ -61,17 +51,11 @@ const fileFilter = (_req, file, cb) => {
     cb(null, true);
   } else {
     cb(
-      new Error(
-        "Only JPG, JPEG, PNG and WEBP images are allowed"
-      ),
+      new Error("Only JPG, JPEG, PNG and WEBP images are allowed"),
       false
     );
   }
 };
-
-// ============================================================
-// MULTER
-// ============================================================
 
 const upload = multer({
   storage,

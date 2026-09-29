@@ -25,7 +25,7 @@ export default function AdminLayout() {
     localStorage.removeItem("role");
     localStorage.removeItem("isAdmin");
 
-    navigate("/login", { replace: true });
+  navigate("/", { replace: true });
   };
 
   const menuItems = [

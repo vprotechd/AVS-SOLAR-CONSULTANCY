@@ -22,7 +22,7 @@ function Team() {
   useEffect(() => {
     const fetchTeam = async () => {
       try {
-        const response = await fetch(`${API_URL}/team/public`);
+        const response = await fetch(`${API_URL}/team/active`);
 
         if (!response.ok) {
           throw new Error(`Server returned ${response.status}`);

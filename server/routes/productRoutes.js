@@ -9,14 +9,14 @@ import {
   updateProduct,
   deleteProduct,
 } from "../controllers/productController.js";
-
+import upload from "../middleware/productUpload.js";
 import { adminAuth } from "../middleware/adminAuth.js";
 
 const router = express.Router();
 
 /*
 |--------------------------------------------------------------------------
-| PUBLIC
+| PUBLIC  (must stay above "/:id")
 |--------------------------------------------------------------------------
 */
 
@@ -26,16 +26,16 @@ router.get("/public/:id", getPublicProduct);
 /*
 |--------------------------------------------------------------------------
 | ADMIN
+| Order matters: adminAuth -> multer -> controller
+| (auth first so unauthenticated users can't write files to disk)
 |--------------------------------------------------------------------------
 */
 
 router.get("/", adminAuth, getAllProducts);
-
 router.get("/:id", adminAuth, getProduct);
 
-router.post("/", adminAuth, createProduct);
-
-router.put("/:id", adminAuth, updateProduct);
+router.post("/", adminAuth, upload.single("image"), createProduct);
+router.put("/:id", adminAuth, upload.single("image"), updateProduct);
 
 router.delete("/:id", adminAuth, deleteProduct);
 

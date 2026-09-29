@@ -50,57 +50,25 @@ const AdminTeam = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+
+  const [form, setForm] = useState({ ...emptyForm });
 
   // ============================================================
   // GET BACKEND URL
   // ============================================================
 
   const getBackendUrl = () => {
-    // First try Axios base URL
-    const apiBaseUrl = api?.defaults?.baseURL;
+    const envApiUrl = import.meta.env.VITE_API_URL || "";
+    const axiosApiUrl = api?.defaults?.baseURL || "";
 
-    if (apiBaseUrl) {
+    const apiUrl = envApiUrl || axiosApiUrl;
+
+    if (apiUrl) {
       try {
-        const url = new URL(
-          apiBaseUrl,
-          window.location.origin
-        );
-
-        let origin = url.origin;
-
-        // Remove trailing slash
-        origin = origin.replace(/\/+$/, "");
-
-        return origin;
+        const url = new URL(apiUrl, window.location.origin);
+        return url.origin;
       } catch (error) {
-        console.warn(
-          "Unable to parse api.defaults.baseURL:",
-          error
-        );
-      }
-    }
-
-    // Try Vite environment variable
-    const envApiUrl = import.meta.env.VITE_API_URL;
-
-    if (envApiUrl) {
-      try {
-        const url = new URL(
-          envApiUrl,
-          window.location.origin
-        );
-
-        let origin = url.origin;
-
-        origin = origin.replace(/\/+$/, "");
-
-        return origin;
-      } catch (error) {
-        console.warn(
-          "Unable to parse VITE_API_URL:",
-          error
-        );
+        console.warn("Unable to parse API URL:", error);
       }
     }
 
@@ -127,38 +95,29 @@ const AdminTeam = () => {
 
     if (!imageValue) return "";
 
-    // New local browser preview
-    if (imageValue.startsWith("blob:")) {
+    // Browser preview
+    if (
+      imageValue.startsWith("blob:") ||
+      imageValue.startsWith("data:")
+    ) {
       return imageValue;
     }
 
-    // Already complete URL
-    if (
-      imageValue.startsWith("http://") ||
-      imageValue.startsWith("https://")
-    ) {
+    // Already a complete URL
+    if (/^https?:\/\//i.test(imageValue)) {
       return imageValue;
     }
 
     // Normalize Windows-style slashes
     imageValue = imageValue.replace(/\\/g, "/");
 
-    // Remove accidental API prefix
-    if (imageValue.startsWith("/api/uploads/")) {
-      imageValue = imageValue.replace(
-        "/api/uploads/",
-        "/uploads/"
-      );
-    }
+    // Remove accidental /api prefix
+    imageValue = imageValue.replace(
+      /^\/?api\/uploads/i,
+      "/uploads"
+    );
 
-    if (imageValue.startsWith("api/uploads/")) {
-      imageValue = imageValue.replace(
-        "api/uploads/",
-        "uploads/"
-      );
-    }
-
-    // Ensure leading slash
+    // Make sure uploads path starts with /
     if (!imageValue.startsWith("/")) {
       imageValue = `/${imageValue}`;
     }
@@ -283,15 +242,21 @@ const AdminTeam = () => {
       return;
     }
 
-    // Remove previous preview
+    // Remove previous blob preview
     revokeBlobPreview();
 
     setSelectedImage(file);
 
-    const previewUrl =
-      URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(file);
 
     setImagePreview(previewUrl);
+
+    console.log("Selected image:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      preview: previewUrl,
+    });
   };
 
   // ============================================================
@@ -305,6 +270,7 @@ const AdminTeam = () => {
     setForm({ ...emptyForm });
     setSelectedImage(null);
     setImagePreview("");
+
     setShowModal(true);
   };
 
@@ -330,8 +296,7 @@ const AdminTeam = () => {
       email: member.email || "",
       phone: member.phone || "",
       experience: member.experience || "",
-      qualification:
-        member.qualification || "",
+      qualification: member.qualification || "",
       location: member.location || "",
       bio: member.bio || "",
 
@@ -367,7 +332,9 @@ const AdminTeam = () => {
 
     setShowModal(false);
     setEditingMember(null);
+
     setForm({ ...emptyForm });
+
     setSelectedImage(null);
     setImagePreview("");
   };
@@ -505,9 +472,9 @@ const AdminTeam = () => {
         )
       );
 
-      // ----------------------------------------------------------
+      // ========================================================
       // SKILLS
-      // ----------------------------------------------------------
+      // ========================================================
 
       const skillsArray = form.skills
         .split(",")
@@ -519,16 +486,18 @@ const AdminTeam = () => {
         JSON.stringify(skillsArray)
       );
 
-      // ----------------------------------------------------------
+      // ========================================================
       // IMAGE
-      // ----------------------------------------------------------
+      // ========================================================
 
       if (selectedImage) {
         console.log(
-          "Uploading image:",
-          selectedImage.name,
-          selectedImage.type,
-          selectedImage.size
+          "Uploading team image:",
+          {
+            name: selectedImage.name,
+            type: selectedImage.type,
+            size: selectedImage.size,
+          }
         );
 
         formData.append(
@@ -537,24 +506,22 @@ const AdminTeam = () => {
         );
       }
 
-      // ----------------------------------------------------------
-      // DEBUG FORMDATA
-      // ----------------------------------------------------------
+      // ========================================================
+      // DEBUG
+      // ========================================================
 
       console.log(
         "Saving team member:",
         {
           editing: Boolean(editingMember),
-          memberId:
-            editingMember?._id,
-          hasImage:
-            Boolean(selectedImage),
+          memberId: editingMember?._id,
+          hasImage: Boolean(selectedImage),
         }
       );
 
-      // ----------------------------------------------------------
-      // EDIT
-      // ----------------------------------------------------------
+      // ========================================================
+      // UPDATE
+      // ========================================================
 
       if (editingMember) {
         await api.put(
@@ -567,9 +534,9 @@ const AdminTeam = () => {
         );
       }
 
-      // ----------------------------------------------------------
-      // ADD
-      // ----------------------------------------------------------
+      // ========================================================
+      // CREATE
+      // ========================================================
 
       else {
         await api.post(
@@ -616,10 +583,9 @@ const AdminTeam = () => {
   // ============================================================
 
   const handleDelete = async (member) => {
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to delete "${member.name}"?`
-      );
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${member.name}"?`
+    );
 
     if (!confirmed) return;
 
@@ -705,15 +671,19 @@ const AdminTeam = () => {
         member.name
           ?.toLowerCase()
           .includes(query) ||
+
         member.designation
           ?.toLowerCase()
           .includes(query) ||
+
         member.email
           ?.toLowerCase()
           .includes(query) ||
+
         member.location
           ?.toLowerCase()
           .includes(query) ||
+
         (Array.isArray(member.skills)
           ? member.skills
               .join(" ")
@@ -730,7 +700,10 @@ const AdminTeam = () => {
 
   return (
     <div className="admin-team-page">
-      {/* HEADER */}
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
 
       <div className="admin-team-header">
         <div>
@@ -752,9 +725,12 @@ const AdminTeam = () => {
         </button>
       </div>
 
-      {/* TOOLBAR */}
+      {/* ======================================================
+          TOOLBAR
+      ====================================================== */}
 
       <div className="admin-team-toolbar">
+
         <div className="admin-team-search">
           <FiSearch />
 
@@ -787,9 +763,12 @@ const AdminTeam = () => {
         </button>
       </div>
 
-      {/* STATS */}
+      {/* ======================================================
+          STATS
+      ====================================================== */}
 
       <div className="admin-team-stats">
+
         <div className="admin-team-stat-card">
           <div className="admin-team-stat-icon">
             <FiUser />
@@ -841,11 +820,15 @@ const AdminTeam = () => {
             </strong>
           </div>
         </div>
+
       </div>
 
-      {/* CONTENT */}
+      {/* ======================================================
+          CONTENT
+      ====================================================== */}
 
       {loading ? (
+
         <div className="admin-team-loading">
           <div className="admin-team-loader"></div>
 
@@ -853,8 +836,11 @@ const AdminTeam = () => {
             Loading team members...
           </p>
         </div>
+
       ) : filteredTeam.length === 0 ? (
+
         <div className="admin-team-empty">
+
           <FiUser />
 
           <h3>
@@ -879,11 +865,16 @@ const AdminTeam = () => {
               Add Team Member
             </button>
           )}
+
         </div>
+
       ) : (
+
         <div className="admin-team-grid">
+
           {filteredTeam.map(
             (member) => {
+
               const memberImageUrl =
                 getImageUrl(
                   member.image
@@ -898,14 +889,17 @@ const AdminTeam = () => {
                   }`}
                   key={member._id}
                 >
-                  {/* IMAGE */}
+
+                  {/* =================================================
+                      IMAGE
+                  ================================================= */}
 
                   <div className="admin-team-card-image">
+
                     {memberImageUrl ? (
+
                       <img
-                        src={
-                          memberImageUrl
-                        }
+                        src={memberImageUrl}
                         alt={
                           member.name ||
                           "Team member"
@@ -938,6 +932,7 @@ const AdminTeam = () => {
                           }
                         }}
                       />
+
                     ) : null}
 
                     <div
@@ -963,19 +958,21 @@ const AdminTeam = () => {
                         ? "Active"
                         : "Inactive"}
                     </span>
+
                   </div>
 
-                  {/* DETAILS */}
+                  {/* =================================================
+                      DETAILS
+                  ================================================= */}
 
                   <div className="admin-team-card-body">
+
                     <h3>
                       {member.name}
                     </h3>
 
                     <p className="admin-team-designation">
-                      {
-                        member.designation
-                      }
+                      {member.designation}
                     </p>
 
                     {member.email && (
@@ -983,9 +980,7 @@ const AdminTeam = () => {
                         <FiMail />
 
                         <span>
-                          {
-                            member.email
-                          }
+                          {member.email}
                         </span>
                       </div>
                     )}
@@ -995,9 +990,7 @@ const AdminTeam = () => {
                         <FiPhone />
 
                         <span>
-                          {
-                            member.phone
-                          }
+                          {member.phone}
                         </span>
                       </div>
                     )}
@@ -1007,9 +1000,7 @@ const AdminTeam = () => {
                         <FiMapPin />
 
                         <span>
-                          {
-                            member.location
-                          }
+                          {member.location}
                         </span>
                       </div>
                     )}
@@ -1019,9 +1010,7 @@ const AdminTeam = () => {
                         <FiBriefcase />
 
                         <span>
-                          {
-                            member.experience
-                          }
+                          {member.experience}
                         </span>
                       </div>
                     )}
@@ -1031,19 +1020,19 @@ const AdminTeam = () => {
                         <FiBookOpen />
 
                         <span>
-                          {
-                            member.qualification
-                          }
+                          {member.qualification}
                         </span>
                       </div>
                     )}
 
+                    {/* SKILLS */}
+
                     {Array.isArray(
                       member.skills
                     ) &&
-                      member.skills
-                        .length > 0 && (
+                      member.skills.length > 0 && (
                         <div className="admin-team-skills">
+
                           {member.skills
                             .slice(0, 5)
                             .map(
@@ -1056,16 +1045,18 @@ const AdminTeam = () => {
                                     index
                                   }
                                 >
-                                  {
-                                    skill
-                                  }
+                                  {skill}
                                 </span>
                               )
                             )}
+
                         </div>
                       )}
 
+                    {/* LINKS */}
+
                     <div className="admin-team-links">
+
                       {member.linkedin && (
                         <a
                           href={
@@ -1091,12 +1082,17 @@ const AdminTeam = () => {
                           <FiGlobe />
                         </a>
                       )}
+
                     </div>
+
                   </div>
 
-                  {/* ACTIONS */}
+                  {/* =================================================
+                      ACTIONS
+                  ================================================= */}
 
                   <div className="admin-team-card-actions">
+
                     <button
                       type="button"
                       className="admin-team-edit-btn"
@@ -1140,17 +1136,23 @@ const AdminTeam = () => {
                     >
                       <FiTrash2 />
                     </button>
+
                   </div>
+
                 </div>
               );
             }
           )}
+
         </div>
       )}
 
-      {/* MODAL */}
+      {/* ========================================================
+          MODAL
+      ======================================================== */}
 
       {showModal && (
+
         <div
           className="admin-team-modal-overlay"
           onMouseDown={(e) => {
@@ -1163,11 +1165,15 @@ const AdminTeam = () => {
             }
           }}
         >
+
           <div className="admin-team-modal">
+
             {/* MODAL HEADER */}
 
             <div className="admin-team-modal-header">
+
               <div>
+
                 <h2>
                   {editingMember
                     ? "Edit Team Member"
@@ -1179,6 +1185,7 @@ const AdminTeam = () => {
                     ? "Update team member details"
                     : "Add a new member to your team"}
                 </p>
+
               </div>
 
               <button
@@ -1189,6 +1196,7 @@ const AdminTeam = () => {
               >
                 <FiX />
               </button>
+
             </div>
 
             {/* FORM */}
@@ -1197,22 +1205,29 @@ const AdminTeam = () => {
               onSubmit={handleSubmit}
               className="admin-team-form"
             >
-              {/* BASIC INFORMATION */}
+
+              {/* =================================================
+                  BASIC INFORMATION
+              ================================================= */}
 
               <div className="admin-team-section">
+
                 <h3>
                   Basic Information
                 </h3>
 
                 <div className="admin-team-form-grid">
+
                   {/* NAME */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Full Name *
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiUser />
 
                       <input
@@ -1227,17 +1242,21 @@ const AdminTeam = () => {
                         placeholder="Enter full name"
                         required
                       />
+
                     </div>
+
                   </div>
 
                   {/* DESIGNATION */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Designation *
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiBriefcase />
 
                       <input
@@ -1252,17 +1271,21 @@ const AdminTeam = () => {
                         placeholder="e.g. Solar Consultant"
                         required
                       />
+
                     </div>
+
                   </div>
 
                   {/* EMAIL */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Email *
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiMail />
 
                       <input
@@ -1277,17 +1300,21 @@ const AdminTeam = () => {
                         placeholder="member@example.com"
                         required
                       />
+
                     </div>
+
                   </div>
 
                   {/* PHONE */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Phone
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiPhone />
 
                       <input
@@ -1301,17 +1328,21 @@ const AdminTeam = () => {
                         }
                         placeholder="+91 98765 43210"
                       />
+
                     </div>
+
                   </div>
 
                   {/* EXPERIENCE */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Experience
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiBriefcase />
 
                       <input
@@ -1325,17 +1356,21 @@ const AdminTeam = () => {
                         }
                         placeholder="e.g. 8 Years"
                       />
+
                     </div>
+
                   </div>
 
                   {/* QUALIFICATION */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Qualification
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiBookOpen />
 
                       <input
@@ -1349,17 +1384,21 @@ const AdminTeam = () => {
                         }
                         placeholder="e.g. B.Tech Electrical"
                       />
+
                     </div>
+
                   </div>
 
                   {/* LOCATION */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Location
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiMapPin />
 
                       <input
@@ -1373,12 +1412,15 @@ const AdminTeam = () => {
                         }
                         placeholder="e.g. New Delhi, India"
                       />
+
                     </div>
+
                   </div>
 
                   {/* DISPLAY ORDER */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Display Order
                     </label>
@@ -1395,13 +1437,19 @@ const AdminTeam = () => {
                       placeholder="0"
                       min="0"
                     />
+
                   </div>
+
                 </div>
+
               </div>
 
-              {/* PROFESSIONAL DETAILS */}
+              {/* =================================================
+                  PROFESSIONAL DETAILS
+              ================================================= */}
 
               <div className="admin-team-section">
+
                 <h3>
                   Professional Details
                 </h3>
@@ -1409,24 +1457,29 @@ const AdminTeam = () => {
                 {/* BIO */}
 
                 <div className="admin-team-field">
+
                   <label>
                     Biography
                   </label>
 
                   <textarea
                     name="bio"
-                    value={form.bio}
+                    value={
+                      form.bio
+                    }
                     onChange={
                       handleChange
                     }
                     placeholder="Write a short biography..."
                     rows="5"
                   />
+
                 </div>
 
                 {/* SKILLS */}
 
                 <div className="admin-team-field">
+
                   <label>
                     Skills
                   </label>
@@ -1447,12 +1500,17 @@ const AdminTeam = () => {
                     Separate multiple
                     skills with commas.
                   </small>
+
                 </div>
+
               </div>
 
-              {/* PROFILE & LINKS */}
+              {/* =================================================
+                  PROFILE & LINKS
+              ================================================= */}
 
               <div className="admin-team-section">
+
                 <h3>
                   Profile & Links
                 </h3>
@@ -1460,6 +1518,7 @@ const AdminTeam = () => {
                 {/* IMAGE UPLOAD */}
 
                 <div className="admin-team-field">
+
                   <label>
                     Profile Image
                   </label>
@@ -1476,7 +1535,9 @@ const AdminTeam = () => {
 
                   {(imagePreview ||
                     form.image) && (
+
                     <div className="admin-team-image-preview">
+
                       <img
                         src={
                           imagePreview ||
@@ -1504,7 +1565,9 @@ const AdminTeam = () => {
                             "none";
                         }}
                       />
+
                     </div>
+
                   )}
 
                   <small>
@@ -1524,19 +1587,23 @@ const AdminTeam = () => {
                       </strong>
                     </small>
                   )}
+
                 </div>
 
                 {/* LINKS */}
 
                 <div className="admin-team-form-grid">
+
                   {/* LINKEDIN */}
 
                   <div className="admin-team-field">
+
                     <label>
                       LinkedIn URL
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiLinkedin />
 
                       <input
@@ -1550,17 +1617,21 @@ const AdminTeam = () => {
                         }
                         placeholder="https://linkedin.com/in/..."
                       />
+
                     </div>
+
                   </div>
 
                   {/* WEBSITE */}
 
                   <div className="admin-team-field">
+
                     <label>
                       Website URL
                     </label>
 
                     <div className="admin-team-input-wrap">
+
                       <FiGlobe />
 
                       <input
@@ -1574,15 +1645,23 @@ const AdminTeam = () => {
                         }
                         placeholder="https://example.com"
                       />
+
                     </div>
+
                   </div>
+
                 </div>
+
               </div>
 
-              {/* STATUS */}
+              {/* =================================================
+                  STATUS
+              ================================================= */}
 
               <div className="admin-team-status-row">
+
                 <div>
+
                   <strong>
                     Member Status
                   </strong>
@@ -1592,9 +1671,11 @@ const AdminTeam = () => {
                     not appear on the
                     public team page.
                   </p>
+
                 </div>
 
                 <label className="admin-team-switch">
+
                   <input
                     type="checkbox"
                     name="isActive"
@@ -1607,12 +1688,17 @@ const AdminTeam = () => {
                   />
 
                   <span></span>
+
                 </label>
+
               </div>
 
-              {/* ACTIONS */}
+              {/* =================================================
+                  ACTIONS
+              ================================================= */}
 
               <div className="admin-team-modal-actions">
+
                 <button
                   type="button"
                   className="admin-team-cancel-btn"
@@ -1627,12 +1713,16 @@ const AdminTeam = () => {
                   className="admin-team-save-btn"
                   disabled={saving}
                 >
+
                   {saving ? (
+
                     <>
                       <span className="admin-team-btn-loader"></span>
                       Saving...
                     </>
+
                   ) : (
+
                     <>
                       <FiCheck />
 
@@ -1640,13 +1730,21 @@ const AdminTeam = () => {
                         ? "Update Member"
                         : "Add Member"}
                     </>
+
                   )}
+
                 </button>
+
               </div>
+
             </form>
+
           </div>
+
         </div>
+
       )}
+
     </div>
   );
 };

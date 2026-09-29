@@ -1,118 +1,210 @@
+import fs from "fs";
+import path from "path";
+import mongoose from "mongoose";
+import { fileURLToPath } from "url";
 import Product from "../models/Product.js";
 
-/* =========================================================
-   GET ALL PRODUCTS - ADMIN
-   ========================================================= */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SERVER_ROOT = path.join(__dirname, "..");
+const UPLOADS_ROOT = path.join(SERVER_ROOT, "uploads");
+const IS_PROD = process.env.NODE_ENV === "production";
 
-export const getAllProducts = async (req, res) => {
+/* ================= HELPERS ================= */
+
+const getImageUrl = (image, req) => {
+  if (!image) return "";
+  if (/^https?:\/\//i.test(image)) return image;
+  const base = process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
+  return `${base}${image.startsWith("/") ? image : `/uploads/products/${image}`}`;
+};
+
+const formatProduct = (product, req) => ({
+  ...product,
+  id: product._id,
+  image: getImageUrl(product.image, req),
+});
+
+const deleteImageFile = (image) => {
   try {
-    const products = await Product.find()
-      .sort({ createdAt: -1 })
-      .lean();
+    if (!image || /^https?:\/\//i.test(image)) return;
 
-    return res.status(200).json({
-      success: true,
-      products,
-    });
-  } catch (error) {
-    console.error("Get products error:", error);
+    const filePath = path.resolve(SERVER_ROOT, image.replace(/^\/+/, ""));
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load products",
-    });
+    // Safety: only ever delete inside /uploads
+    if (!filePath.startsWith(UPLOADS_ROOT)) return;
+
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch (err) {
+    console.error("Failed to delete product image:", err.message);
   }
 };
 
-/* =========================================================
-   GET PUBLIC PRODUCTS
-   ========================================================= */
+const cleanupUploaded = (req) => {
+  if (req.file?.path && fs.existsSync(req.file.path)) {
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch {
+      /* ignore */
+    }
+  }
+};
+
+// multipart sends everything as strings
+const toBool = (v, fallback = false) =>
+  v === undefined || v === null || v === ""
+    ? fallback
+    : v === true || String(v) === "true";
+
+const toNumberOrNull = (v) =>
+  v === undefined || v === null || v === "" ? null : Number(v);
+
+// Always returns [{ name, value }]
+const parseSpecifications = (value) => {
+  if (value === undefined || value === null || value === "") return [];
+
+  let list = value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      list =
+        parsed && typeof parsed === "object"
+          ? parsed
+          : value.split(/\r?\n/);
+    } catch {
+      list = value.split(/\r?\n/); // plain textarea text
+    }
+  }
+
+  if (!Array.isArray(list)) {
+    if (list && typeof list === "object") {
+      list = Object.entries(list).map(([name, val]) => ({ name, value: val }));
+    } else {
+      return [];
+    }
+  }
+
+  return list
+    .map((item) => {
+      if (item && typeof item === "object") {
+        return {
+          name: String(item.name ?? item.key ?? "").trim(),
+          value: String(item.value ?? "").trim(),
+        };
+      }
+
+      const line = String(item).trim();
+      const i = line.indexOf(":");
+
+      return i === -1
+        ? { name: line, value: "" }
+        : {
+            name: line.slice(0, i).trim(),
+            value: line.slice(i + 1).trim(),
+          };
+    })
+    .filter((spec) => spec.name);
+};
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// One place to turn any thrown error into a useful response
+const sendServerError = (res, error, message) => {
+  console.error(`${message}:`, error);
+
+  if (error?.name === "ValidationError") {
+    return res.status(400).json({
+      success: false,
+      message: Object.values(error.errors)
+        .map((e) => e.message)
+        .join(", "),
+    });
+  }
+
+  if (error?.code === 11000) {
+    const field = Object.keys(error.keyPattern || {})[0] || "value";
+    return res.status(409).json({
+      success: false,
+      message: `A product with this ${field} already exists`,
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    message,
+    ...(IS_PROD ? {} : { error: error?.message }),
+  });
+};
+
+/* ================= READ ================= */
+
+export const getAllProducts = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ createdAt: -1 }).lean();
+    return res.json({
+      success: true,
+      products: products.map((p) => formatProduct(p, req)),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Failed to load products");
+  }
+};
 
 export const getPublicProducts = async (req, res) => {
   try {
-    const products = await Product.find({
-      isActive: true,
-    })
-      .sort({
-        featured: -1,
-        createdAt: -1,
-      })
+    const products = await Product.find({ isActive: true })
+      .sort({ featured: -1, createdAt: -1 })
       .lean();
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      products,
+      products: products.map((p) => formatProduct(p, req)),
     });
   } catch (error) {
-    console.error("Get public products error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load products",
-    });
+    return sendServerError(res, error, "Failed to load products");
   }
 };
 
 export const getPublicProduct = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid product id" });
+    }
+
     const product = await Product.findOne({
       _id: req.params.id,
       isActive: true,
     }).lean();
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    return res.status(200).json({
-      success: true,
-      product,
-    });
+    return res.json({ success: true, product: formatProduct(product, req) });
   } catch (error) {
-    console.error("Get public product error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load product",
-    });
+    return sendServerError(res, error, "Failed to load product");
   }
 };
-
-/* =========================================================
-   GET SINGLE PRODUCT
-   ========================================================= */
 
 export const getProduct = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid product id" });
+    }
+
     const product = await Product.findById(req.params.id).lean();
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    return res.status(200).json({
-      success: true,
-      product,
-    });
+    return res.json({ success: true, product: formatProduct(product, req) });
   } catch (error) {
-    console.error("Get product error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load product",
-    });
+    return sendServerError(res, error, "Failed to load product");
   }
 };
 
-/* =========================================================
-   CREATE PRODUCT
-   ========================================================= */
+/* ================= CREATE ================= */
 
 export const createProduct = async (req, res) => {
   try {
@@ -125,250 +217,175 @@ export const createProduct = async (req, res) => {
       price,
       discountPrice,
       stock,
-      image,
       featured,
       isActive,
       specifications,
-    } = req.body;
+    } = req.body || {}; // ✅ never crashes if body is undefined
 
-    if (!name?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Product name is required",
-      });
+    if (!String(name || "").trim()) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Product name is required" });
     }
 
-    if (!category?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Product category is required",
-      });
-    }
-
-    if (
-      price === undefined ||
-      price === null ||
-      price === "" ||
-      Number.isNaN(Number(price))
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid product price is required",
-      });
+    if (!String(category || "").trim()) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Product category is required" });
     }
 
     const numericPrice = Number(price);
-    const numericDiscount =
-      discountPrice === null ||
-      discountPrice === undefined ||
-      discountPrice === ""
-        ? null
-        : Number(discountPrice);
-
-    const numericStock =
-      stock === null ||
-      stock === undefined ||
-      stock === ""
-        ? 0
-        : Number(stock);
-
-    if (numericPrice < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Price cannot be negative",
-      });
+    if (price === undefined || price === "" || Number.isNaN(numericPrice) || numericPrice < 0) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Valid product price is required" });
     }
 
-    if (
-      numericDiscount !== null &&
-      (Number.isNaN(numericDiscount) || numericDiscount < 0)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid discount price",
-      });
+    const numericDiscount = toNumberOrNull(discountPrice);
+    if (numericDiscount !== null && (Number.isNaN(numericDiscount) || numericDiscount < 0)) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Invalid discount price" });
     }
-
-    if (
-      numericDiscount !== null &&
-      numericDiscount > numericPrice
-    ) {
+    if (numericDiscount !== null && numericDiscount > numericPrice) {
+      cleanupUploaded(req);
       return res.status(400).json({
         success: false,
         message: "Discount price cannot be greater than original price",
       });
     }
 
+    const numericStock = toNumberOrNull(stock) ?? 0;
     if (Number.isNaN(numericStock) || numericStock < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid stock quantity",
-      });
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Invalid stock quantity" });
     }
 
+    // Image comes from the uploaded file, stored as a relative path
+    const image = req.file ? `/uploads/products/${req.file.filename}` : "";
+
     const product = await Product.create({
-      name: name.trim(),
-      category: category.trim(),
-      brand: brand?.trim() || "",
-      sku: sku?.trim() || "",
-      description: description?.trim() || "",
+      name: String(name).trim(),
+      category: String(category).trim(),
+      brand: String(brand || "").trim(),
+      sku: String(sku || "").trim(),
+      description: String(description || "").trim(),
       price: numericPrice,
       discountPrice: numericDiscount,
       stock: numericStock,
-      image: image?.trim() || "",
-      featured: Boolean(featured),
-      isActive:
-        typeof isActive === "boolean" ? isActive : true,
-      specifications: Array.isArray(specifications)
-        ? specifications
-        : [],
+      image,
+      featured: toBool(featured),
+      isActive: toBool(isActive, true),
+      specifications: parseSpecifications(specifications),
     });
 
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
-      product,
+      product: formatProduct(product.toObject(), req),
     });
   } catch (error) {
-    console.error("Create product error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create product",
-    });
+    cleanupUploaded(req);
+    return sendServerError(res, error, "Failed to create product");
   }
 };
 
-/* =========================================================
-   UPDATE PRODUCT
-   ========================================================= */
+/* ================= UPDATE ================= */
 
 export const updateProduct = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Invalid product id" });
+    }
+
     const product = await Product.findById(req.params.id);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      cleanupUploaded(req);
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    const allowedFields = [
-      "name",
-      "category",
-      "brand",
-      "sku",
-      "description",
-      "price",
-      "discountPrice",
-      "stock",
-      "image",
-      "featured",
-      "isActive",
-      "specifications",
-    ];
+    const b = req.body || {}; // ✅ never crashes if body is undefined
+    const has = (f) => Object.prototype.hasOwnProperty.call(b, f);
 
-    allowedFields.forEach((field) => {
-      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
-        product[field] = req.body[field];
-      }
-    });
-
-    if (product.name) {
-      product.name = product.name.trim();
+    if (has("name")) product.name = String(b.name || "").trim();
+    if (has("category")) product.category = String(b.category || "").trim();
+    if (has("brand")) product.brand = String(b.brand || "").trim();
+    if (has("sku")) product.sku = String(b.sku || "").trim();
+    if (has("description")) product.description = String(b.description || "").trim();
+    if (has("price")) product.price = Number(b.price);
+    if (has("discountPrice")) product.discountPrice = toNumberOrNull(b.discountPrice);
+    if (has("stock")) product.stock = toNumberOrNull(b.stock) ?? 0;
+    if (has("featured")) product.featured = toBool(b.featured);
+    if (has("isActive")) product.isActive = toBool(b.isActive, true);
+    if (has("specifications")) {
+      product.specifications = parseSpecifications(b.specifications);
     }
 
-    if (product.category) {
-      product.category = product.category.trim();
+    if (!product.name) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Product name is required" });
     }
-
-    if (product.brand) {
-      product.brand = product.brand.trim();
+    if (Number.isNaN(product.price) || product.price < 0) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Invalid price" });
     }
-
-    if (product.sku) {
-      product.sku = product.sku.trim();
-    }
-
-    if (product.description) {
-      product.description = product.description.trim();
-    }
-
-    if (product.image) {
-      product.image = product.image.trim();
-    }
-
-    if (product.price < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Price cannot be negative",
-      });
-    }
-
     if (
       product.discountPrice !== null &&
       product.discountPrice !== undefined &&
-      product.discountPrice !== "" &&
-      product.discountPrice > product.price
+      (Number.isNaN(product.discountPrice) || product.discountPrice > product.price)
     ) {
+      cleanupUploaded(req);
       return res.status(400).json({
         success: false,
         message: "Discount price cannot be greater than original price",
       });
     }
+    if (Number.isNaN(product.stock) || product.stock < 0) {
+      cleanupUploaded(req);
+      return res.status(400).json({ success: false, message: "Invalid stock quantity" });
+    }
 
-    if (product.stock < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Stock cannot be negative",
-      });
+    // Image handling
+    const oldImage = product.image;
+
+    if (req.file) {
+      product.image = `/uploads/products/${req.file.filename}`;
+    } else if (toBool(b.removeImage)) {
+      product.image = "";
     }
 
     await product.save();
 
-    return res.status(200).json({
+    if (oldImage && oldImage !== product.image) deleteImageFile(oldImage);
+
+    return res.json({
       success: true,
       message: "Product updated successfully",
-      product,
+      product: formatProduct(product.toObject(), req),
     });
   } catch (error) {
-    console.error("Update product error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update product",
-    });
+    cleanupUploaded(req);
+    return sendServerError(res, error, "Failed to update product");
   }
 };
 
-/* =========================================================
-   DELETE PRODUCT
-   ========================================================= */
+/* ================= DELETE ================= */
 
 export const deleteProduct = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid product id" });
+    }
+
     const product = await Product.findById(req.params.id);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    await Product.findByIdAndDelete(req.params.id);
+    deleteImageFile(product.image);
+    await product.deleteOne();
 
-    return res.status(200).json({
-      success: true,
-      message: "Product deleted successfully",
-    });
+    return res.json({ success: true, message: "Product deleted successfully" });
   } catch (error) {
-    console.error("Delete product error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete product",
-    });
+    return sendServerError(res, error, "Failed to delete product");
   }
 };
