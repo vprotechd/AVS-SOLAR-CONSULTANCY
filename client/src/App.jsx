@@ -9,6 +9,7 @@ import {
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+
 import ScrollToTop from "./components/ScrollToTop";
 
 // Public pages
@@ -109,6 +110,8 @@ function App() {
   );
 
 
+  
+
   // ---------------------------------------------------
   // GET USER
   // ---------------------------------------------------
@@ -185,10 +188,20 @@ function App() {
 
       <ScrollToTop />
 
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-      />
+     <ToastContainer
+  position="top-right"
+  autoClose={3000}
+  newestOnTop
+  closeOnClick
+  pauseOnHover
+  draggable
+  theme="light"
+  style={{
+    top: "85px",
+    right: "20px",
+    zIndex: 999999,
+  }}
+/>
 
 
       <Routes>

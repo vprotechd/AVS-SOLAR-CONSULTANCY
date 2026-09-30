@@ -72,22 +72,34 @@ export default function Login({ setToken, onClose }) {
           password,
         };
 
-   try {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/user/${endpoint}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/user/${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      /* =================================================
+         READ RESPONSE
+         ================================================= */
 
       const data = await response.json();
 
+      /* =================================================
+         API ERROR
+         ================================================= */
+
       if (!response.ok) {
-        throw new Error(data.message || "Something went wrong");
+        throw new Error(
+          data.message ||
+            data.error ||
+            "Something went wrong. Please try again."
+        );
       }
 
       /* =================================================
@@ -155,7 +167,13 @@ export default function Login({ setToken, onClose }) {
         setToken(data.token);
       }
 
-      toast.success(data.message || "Login successful");
+      /* =================================================
+         LOGIN SUCCESS TOAST
+         ================================================= */
+
+      toast.success(
+        data.message || "Login successful"
+      );
 
       /* -------------------------
          CLOSE POPUP
@@ -177,10 +195,24 @@ export default function Login({ setToken, onClose }) {
     } catch (err) {
       console.error("Authentication error:", err);
 
-      toast.error(
-        err.message ||
-          "Something went wrong. Please try again."
-      );
+      /* =================================================
+         NETWORK / CONNECTION ERROR
+         ================================================= */
+
+      if (err instanceof TypeError) {
+        toast.error(
+          "Unable to connect to the server. Please try again."
+        );
+      } else {
+        /* =================================================
+           SERVER / API ERROR TOAST
+           ================================================= */
+
+        toast.error(
+          err.message ||
+            "Something went wrong. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
